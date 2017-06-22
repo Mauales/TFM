@@ -1,0 +1,2731 @@
+---
+author:
+  - name: Mauro Alvarez Estarlich
+    affiliation: University Pompeu Fabra
+    email: mauro.alvarez01@estudiant.upf.edu
+  - name: Antonio Julià
+    affiliation: Rheumatology Research Group (VHIR)
+    affiliation2: Parc Cientific de Barcelona
+
+title:
+  formatted: "Plasma lipo and glycoprotein profiling of Rheumatoid Arthritis,Psoriasis and Psoriatic Arthritis"
+  # If you use tex in the formatted title, also supply version without
+  plain:     "Serum lipo and glycoprotein profiling of Rheumatoid Arthritis,Psoriasis and Psoriatic Arthritis"
+  # For running headers, if needed
+  short:     "\\pkg{foo}: A Capitalized Title"
+preamble: >
+  \usepackage{amsmath}
+output: rticles::jss_article
+---
+
+#Summary
+
+Lipoproteins are biochemical assemblies whose purpose is to transport hydrophobic molecules in blood and extracellular fluid. Plasma lipoproteins are classified by their density in five main cathegories: High, Low, Intermediate, Very Low density lipoproteins and Chylomicrons.
+Over the past 50 years, a possible association between dyslipidemia and Inflammatory Mediated Immune Diseases (IMIDs) has been discussed, and multiple studies have been performed. The results showed different tendences for each studied disease, but some shared similar profiles related with atherosclerotic processes and increased levels of LDL and decreased levels of HDL.
+The aim of this study is to perform an analysis in order to determine if the lipoproteic profile is associated with a group of Inflammatory-mediated immune diseases (IMIDs), including Rheumatoid Arthritis (RA), Systemic Lupus Erythemoatosus (SLE), Psoriasis (Ps), Psoriatic Arthritis (PsA), Ulcerative Colitis (UC) and Crohn's Disease (CD). The lipoproteic profiling was obtained from serum samples, using a nuclear magnetic resonance (NMR) method and a posterior spectra analysis, included in the protocol named Liposcale test. The result of the analysis are, for each sample, 23 variables that describe the cholesterol and triglycerides concentration in each lipoprotein class, the concentration of each lipoprotein subclass (depending on particule size), and the mean particule size for each class of lipoproteins (VLDL, LDL and HDL). 
+
+```{r, message=FALSE, echo=FALSE}
+library(readxl)
+library(png)
+library(grid)
+library(ggplot2)
+library(ggfortify)
+library(factoextra)
+LiposcaleResults <- read_excel("Explor_img/LiposcaleResults 16_08_2016.xls", skip = 6)
+PHENOTYPES_LIPO <- read.delim("Explor_img/PHENOTYPES_LIPO.txt")
+PHENOTYPES_LIPO <- PHENOTYPES_LIPO[order(PHENOTYPES_LIPO$biosferID),]
+library("geneplotter")
+library(xtable)
+col.list <- c("red","blue","green","purple")
+cohort.list <- c("RA","PS","PA","CN")
+
+RA <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]
+SLE <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]
+PS <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]
+PA <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]
+UC <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]
+CD <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]
+CN <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="control",]
+
+dflist <- list(RA,PS,PA,CN)
+```
+
+```{r, message= FALSE, echo=FALSE, fig.height=8}
+values <- LiposcaleResults[,3:ncol(LiposcaleResults)]
+values <- values[PHENOTYPES_LIPO$cohort %in% c("RA","PA","PS","control"),]
+PHENOTYPES_LIPO <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort %in% c("RA","PS","PA","control"),]
+names(values)[9:12] <- c("VLDL-T","VLDL-L","VLDL-M","VLDL-S")
+names(values)[13:16] <- c("LDL-T","LDL-L","LDL-M","LDL-S")
+names(values)[17:20] <- c("HDL-T","HDL-L","HDL-M","HDL-S")
+names(values)[21:23] <- c("VLDL","LDL","HDL")
+names(values)[24] <- c("Non-HDL")
+newval <- cbind(values, PHENOTYPES_LIPO$activity)
+thing <- cbind(newval, PHENOTYPES_LIPO$cohort)
+colnames(thing)[27:28] <- c("activity","cohort")
+```
+
+```{r, message=FALSE, echo=FALSE, results="asis", eval = FALSE}
+PHENOTYPES_LIPO$cohort <- factor(PHENOTYPES_LIPO$cohort, levels = c("RA","PS","PA","control"))
+library(dendextend)
+colorCodes <- c(RA="red", PS="green", PA="blue", control="purple")
+groupCodes <- PHENOTYPES_LIPO$cohort
+rownames(values) <- PHENOTYPES_LIPO$sampleID
+dend <- values %>%  scale %>% dist %>% hclust %>% as.dendrogram
+labels_colors(dend) <- colorCodes[groupCodes][order.dendrogram(dend)]
+pdf(paste0(getwd(),"/big_dend.pdf"), width=40, height=15)
+plot(dend, yaxt="n")
+axis(2,cex.axis=3, pos = -1)
+legend("topright", legend = c("RA","PS","PA","control"), col=c("red","green", "blue", "purple"), lty=1, cex = 4)
+dev.off()
+
+colorCodes <- c(HIGH="red", LOW="blue")
+groupCodes <- PHENOTYPES_LIPO$activity
+labels_colors(dend) <- colorCodes[groupCodes][order.dendrogram(dend)]
+pdf(paste0(getwd(),"/big_dend2.pdf"), width=40, height=15)
+plot(dend, yaxt="n")
+axis(2,cex.axis=3, pos=-1)
+legend("topright", legend = c("HIGH","LOW", "control"), col=c("red", "blue", "black"), lty=1, cex = 4)
+dev.off()
+
+library(pvclust)
+result <- pvclust(values, method.dist="cor", 
+                  method.hclust="average", nboot=100)
+plot(result)
+pvrect(result)
+```
+
+\newpage
+
+#Epidemiological and technical variables exploration
+
+For this study we obtained 345 serum samples, from different cohorts or groups, provided by the Rheumatoid Research Group of Vall d'Hebron's Biobank (Parc Cientific de Barcelona (PCB)), located in the:
+
+```{r, message=FALSE, echo=FALSE, results="asis", eval = FALSE}
+samples <- data.frame(Male = numeric(0), Female = numeric(0), log10pval = numeric(0), total = numeric(0) , MalesPercent = numeric(0), FemalesPercent = numeric(0))
+
+contingenc <- table(PHENOTYPES_LIPO$cohort,PHENOTYPES_LIPO$gender)
+
+samples <- rbind(samples, setNames(as.list(c(15,34,round(-log10(chisq.test(contingenc[5,])$p.value),2),49,30.6,69.4)),colnames(samples)))
+samples <- rbind(samples, setNames(as.list(c(5,44,round(-log10(chisq.test(contingenc[6,])$p.value),2),49,10.2,89.2)),colnames(samples)))
+samples <- rbind(samples, setNames(as.list(c(31,18,round(-log10(chisq.test(contingenc[4,])$p.value),2),49,63.3,36.7)),colnames(samples)))
+samples <- rbind(samples, setNames(as.list(c(25,24,round(-log10(chisq.test(contingenc[3,])$p.value),2),49,51.0,49.0)),colnames(samples)))
+samples <- rbind(samples, setNames(as.list(c(24,25,round(-log10(chisq.test(contingenc[7,])$p.value),2),49,49.0,51.0)),colnames(samples)))
+samples <- rbind(samples, setNames(as.list(c(21,29,round(-log10(chisq.test(contingenc[1,])$p.value),2),50,42,58)),colnames(samples)))
+samples <- rbind(samples, setNames(as.list(c(27,23,round(-log10(chisq.test(contingenc[2,])$p.value),2),50,54,46)),colnames(samples)))
+
+rownames(samples) <- c("RA", "SLE", "PS", "PA", "UC", "CD", "Control")
+names(samples) <- c("Males", "Females", "-log10(p value)", "Total", "%Males", "%Females")
+
+print(xtable(samples, digits = c(0,0,0,2,0,1,1), caption=c("Sample distribution among cohorts and gender")), comment = getOption("xtable.comment", FALSE))
+```
+
+![Sample distribution among cohorts and gender](Explor_img/Table1.png)
+
+There is a balanced number of samples from each cohort, but regarding the gender (Figure 1), there are cohorts such as RA and SLE that have an unbalanced number of samples between males and females (-log10(p value) > 1.30, significance <0.05). This is an intrinsic feature of these diseases, that in the case of the SLE affects 9 times more women than men, and in RA that affects three times more women than men.
+
+There are no missing values in any lipoprotein value of any sample.
+
+The following plots represent the density distribution of the continous epidemiologic (age and BMI) and technical variables (Fasting and Time until processing), taking into account the whole set of data (left plot) or the data separated by cohorts (right plot).
+
+```{r, message=FALSE, echo=FALSE, fig.height=3, results="asis", warning=FALSE, eval = FALSE}
+par(mfrow = c(1,2))
+par(mgp=c(2,1,0))
+PHENOTYPES_LIPO <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort %in% c("RA","PS","PA","control"),]
+PHENOTYPES_LIPO$cohort <- factor(PHENOTYPES_LIPO$cohort, levels = c("RA","PS","PA","control"))
+plot(density(PHENOTYPES_LIPO$fasting), main="Total Fasting", xlab = "hours")
+multidensity(PHENOTYPES_LIPO$fasting ~ PHENOTYPES_LIPO$cohort, main ="By cohort Fasting", xlab = "hours", legend=FALSE, col=col.list)
+legend(x = "topright", legend = c("RA","PS","PA","CN"),pch = c(15,15,15), col = col.list, y.intersp = 0.75,bty = "n", cex = 0.75)
+
+Age.pval <- data.frame(RA = numeric, PS = numeric(0) , PA = numeric(0), Control = numeric(0))
+
+Age.int <- data.frame(RA = numeric, PS = numeric(0) , PA = numeric(0), Control = numeric(0))
+
+values2 = c()
+for (parameter in dflist){
+  values1= c()
+  values2 <- c(values2, mean(parameter$fasting))
+  values2 <- c(values2, sd(parameter$fasting))
+  for (parameter2 in dflist){
+    values1 <- c(values1, -log10(ks.test(parameter$fasting, parameter2$fasting)$p.value))
+  }
+  Age.pval <- rbind(Age.pval, setNames(as.list(values1),names(Age.pval)))
+}
+Age.int <- rbind(Age.int, values2[c(1,3,5,7)])
+Age.int <- rbind(Age.int, values2[c(2,4,6,8)])
+
+rownames(Age.pval) <- names(Age.pval)
+names(Age.int) <- names(Age.pval)
+rownames(Age.int) <- c("Mean", "SD")
+
+print(xtable(Age.int, digits = c(2,2,2,2,2), caption = c("Mean and standard deviation (SD) of the fasting period in each cohort")), comment = getOption("xtable.comment", FALSE))
+
+print(xtable(Age.pval, digits = c(2,2,2,2,2), caption = c("Kolmogorov-Smirnov test -log10(p-value) between Fasting density distribution of cohorts")), comment = getOption("xtable.comment", FALSE))
+
+```
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/Table2.png}
+    \caption{Mean and standard deviation (SD) of the fasting  by cohort}
+    \includegraphics[width=\textwidth]{Explor_img/Table3.png}
+    \caption{Kolmogorov-Smirnov test -log10(p-value) between Fasting density distribution by cohorts}
+\end{figure}
+
+The fasting period distribution (Figure 2) shows a main peak around 2.5h but there is a smaller peak around 12h. But after a correlation analysis (Figure 3) comparing the Time until processing between the cohorts, no significant differences for this covariable were found.
+\newpage
+
+```{r, message=FALSE, echo=FALSE, fig.height=3, results="asis", warning=FALSE, eval=FALSE}
+par(mfrow = c(1,2))
+par(mgp=c(2,1,0))
+PHENOTYPES_LIPO$cohort <- factor(PHENOTYPES_LIPO$cohort)
+
+ color_cells2 <- function(df, var){
+   out <- ifelse(as.numeric(df[,var],2)>1.3,
+              paste0(round(df[, var],2),"$^{*}$"),
+              paste0(round(df[, var],2)))
+ }
+
+plot(density(PHENOTYPES_LIPO$age), main="Total Age", xlab = "years")
+multidensity(PHENOTYPES_LIPO$age ~ PHENOTYPES_LIPO$cohort, main ="By cohort Age", xlab = "years", legend=FALSE, col=col.list)
+legend(x = "topright", legend = c("RA","PS","PA","CN"),pch = c(15,15,15), col = col.list, y.intersp = 0.75,bty = "n", cex = 0.75)
+
+Age.pval <- data.frame(RA = numeric, PS = numeric(0) , PA = numeric(0), Control = numeric(0))
+
+Age.int <- data.frame(RA = numeric, PS = numeric(0) , PA = numeric(0), Control = numeric(0))
+
+values2 = c()
+for (parameter in dflist){
+  values1= c()
+  values2 <- c(values2, mean(parameter$age))
+  values2 <- c(values2, sd(parameter$age))
+  for (parameter2 in dflist){
+    values1 <- c(values1, -log10(ks.test(parameter$age, parameter2$age)$p.value))
+  }
+  Age.pval <- rbind(Age.pval, setNames(as.list(values1),names(Age.pval)))
+}
+Age.int <- rbind(Age.int, values2[c(1,3,5,7)])
+Age.int <- rbind(Age.int, values2[c(2,4,6,8)])
+
+rownames(Age.pval) <- names(Age.pval)
+names(Age.int) <- names(Age.pval)
+rownames(Age.int) <- c("Mean", "SD")
+
+Age.pval$RA <- color_cells2(df = Age.pval,var = 1)
+Age.pval$PS <- color_cells2(df = Age.pval,var = 2)
+Age.pval$PA <- color_cells2(df = Age.pval,var = 3)
+Age.pval$Control <- color_cells2(df = Age.pval,var = 4)
+
+print(xtable(Age.int, digits = c(2,2,2,2,2), caption = c("Mean and standard deviation (SD) of the age by cohort")), comment = getOption("xtable.comment", FALSE))
+
+df <- xtable(Age.pval)
+align(df) <- "|c|c|c|c|c|"
+
+print(
+  df,
+  sanitize.text.function= function(x){x}
+)
+```
+  
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/Table4.png}
+    \caption{Mean and standad deviation (SD) of Age in each cohort}
+    \label{fig:awesome_image}
+    \includegraphics[width=\textwidth]{Explor_img/age1.png}
+    \caption{Kolmogorov-Smirnov -log10(p-value) between the distribution of Age of each cohort. In yellow background, the significant p-values (<0.05).}
+\end{figure}
+  
+The age of the patients, are between `r min(PHENOTYPES_LIPO$age)` and `r max(PHENOTYPES_LIPO$age)` years. But CD cohort shows a higher number of samples with ages closer to 40 years, while RA cohort seems to have older patients, with a peak on 60 years  (Figure 4-5).
+\newpage
+
+```{r, message=FALSE, echo=FALSE, fig.height=3, results="asis", warning=FALSE, eval=FALSE}
+par(mfrow = c(1,2))
+par(mgp=c(2,1,0))
+
+ color_cells2 <- function(df, var){
+   out <- ifelse(as.numeric(df[,var],2)>1.3,
+              paste0(round(df[, var],2),"$^{*}$"),
+              paste0(round(df[, var],2)))
+ }
+
+plot(density(PHENOTYPES_LIPO$bmi), main="Total BMI", xlab = "BMI")
+multidensity(PHENOTYPES_LIPO$bmi ~ PHENOTYPES_LIPO$cohort, main ="By cohort BMI", xlab = "BMI", legend=FALSE, col=col.list)
+legend(x = "topright", legend = c("RA","PS","PA","CN"),pch = c(15,15,15), col = col.list, y.intersp = 0.75,bty = "n", cex = 0.75)
+
+Age.pval <- data.frame(RA = numeric, PS = numeric(0) , PA = numeric(0), Control = numeric(0))
+
+Age.int <- data.frame(RA = numeric, PS = numeric(0) , PA = numeric(0), Control = numeric(0))
+
+values2 = c()
+for (parameter in dflist){
+  values1= c()
+  values2 <- c(values2, mean(parameter$bmi))
+  values2 <- c(values2, sd(parameter$bmi))
+  for (parameter2 in dflist){
+    values1 <- c(values1, -log10(ks.test(parameter$bmi, parameter2$bmi)$p.value))
+  }
+  Age.pval <- rbind(Age.pval, setNames(as.list(values1),names(Age.pval)))
+}
+Age.int <- rbind(Age.int, values2[c(1,3,5,7)])
+Age.int <- rbind(Age.int, values2[c(2,4,6,8)])
+
+rownames(Age.pval) <- names(Age.pval)
+names(Age.int) <- names(Age.pval)
+rownames(Age.int) <- c("Mean", "SD")
+
+Age.pval$RA <- color_cells2(df = Age.pval,var = 1)
+Age.pval$PS <- color_cells2(df = Age.pval,var = 2)
+Age.pval$PA <- color_cells2(df = Age.pval,var = 3)
+Age.pval$Control <- color_cells2(df = Age.pval,var = 4)
+
+print(xtable(Age.int, digits = c(2,2,2,2,2), caption = c("Mean and standard deviation (SD) of the BMI by cohort")), comment = getOption("xtable.comment", FALSE))
+
+df <- xtable(Age.pval)
+align(df) <- "|c|c|c|c|c|"
+
+print(
+  df,
+  sanitize.text.function= function(x){x}
+)
+
+```
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/Table5.png}
+    \caption{Mean and standad deviation (SD) of the BMI in each cohort}
+    \label{fig:awesome_image}
+    \includegraphics[width=\textwidth]{Explor_img/BMI1.png}
+    \caption{Kolmogorov-Smirnov -log10(p-value) between the distribution of BMI of each cohort.In yellow background, the significant p-values (<0.05).}
+\end{figure}
+
+BMI samples distribution is similarly distributed among all cohorts, except when we compare CD vs PS and PA that have (in both cases) a higher BMI than CD  (Figure 6-7).
+\newpage
+
+```{r, message=FALSE, echo=FALSE, fig.height=3, results="asis", warning=FALSE, eval=FALSE}
+par(mfrow = c(1,2))
+par(mgp=c(2,1,0))
+
+ color_cells2 <- function(df, var){
+   out <- ifelse(as.numeric(df[,var],2)>1.3,
+              paste0(round(df[, var],2),"$^{*}$"),
+              paste0(round(df[, var],2)))
+ }
+
+plot(density(PHENOTYPES_LIPO$time), main="Total time until processing", xlab = "min")
+multidensity(PHENOTYPES_LIPO$time ~ PHENOTYPES_LIPO$cohort, main ="By cohort time until processing", xlab = "min", legend=FALSE, col=col.list)
+legend(x = "topright", legend = c("RA","PS","PA","CN"),pch = c(15,15,15), col = col.list, y.intersp = 0.75,bty = "n", cex = 0.75)
+
+Age.pval <- data.frame(RA = numeric, PS = numeric(0) , PA = numeric(0), Control = numeric(0))
+
+Age.int <- data.frame(RA = numeric, PS = numeric(0) , PA = numeric(0), Control = numeric(0))
+
+values2 = c()
+for (parameter in dflist){
+  values1= c()
+  values2 <- c(values2, mean(parameter$time))
+  values2 <- c(values2, sd(parameter$time))
+  for (parameter2 in dflist){
+    values1 <- c(values1, -log10(ks.test(parameter$time, parameter2$time)$p.value))
+  }
+  Age.pval <- rbind(Age.pval, setNames(as.list(values1),names(Age.pval)))
+}
+Age.int <- rbind(Age.int, values2[c(1,3,5,7)])
+Age.int <- rbind(Age.int, values2[c(2,4,6,8)])
+
+rownames(Age.pval) <- names(Age.pval)
+names(Age.int) <- names(Age.pval)
+rownames(Age.int) <- c("Mean", "SD")
+
+Age.pval$RA <- color_cells2(df = Age.pval,var = 1)
+Age.pval$PS <- color_cells2(df = Age.pval,var = 2)
+Age.pval$PA <- color_cells2(df = Age.pval,var = 3)
+Age.pval$Control <- color_cells2(df = Age.pval,var = 4)
+
+print(xtable(Age.int, digits = c(2,2,2,2,2), caption = c("Mean and standard deviation (SD) of the Time until processing by cohort")), comment = getOption("xtable.comment", FALSE))
+
+df <- xtable(Age.pval)
+align(df) <- "|c|c|c|c|c|"
+
+print(
+  df,
+  sanitize.text.function= function(x){x}
+)
+```
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/Table6.png}
+    \caption{Mean and standar deviation (SD) of the Time until processing in each cohort}
+    \label{fig:awesome_image}
+    \includegraphics[width=\textwidth]{Explor_img/time.png}
+    \caption{Kolmogorov-Smirnov -log10(p-value) between the distribution of Time Until Processing of each cohort. In yellow background, the significant p-values (<0.05).}
+\end{figure}
+
+Regarding Time until Processing, most of the samples where processed between the first 550-800 minutes after sample collection. Despite that, some of the samples where processed between 900-1100 minutes after collection  (Figure 8-9).
+\newpage
+```{r, message=FALSE, echo=FALSE, fig.height=2}
+RA <- thing[thing$cohort=="RA",]
+PS <- thing[thing$cohort=="PS",]
+PA <- thing[thing$cohort=="PA",]
+CN <- thing[thing$cohort=="control",]
+
+dflist <- list(RA,PS,PA,CN)
+```
+
+```{r, message=FALSE, echo=FALSE}
+library(FactoMineR)
+#Associem cada posicio amb un genere i cohort
+time <- as.factor(PHENOTYPES_LIPO$time)
+gender <- as.factor(PHENOTYPES_LIPO$gender)
+bmi <- as.factor(PHENOTYPES_LIPO$bmi)
+fasting <- as.factor(PHENOTYPES_LIPO$fasting)
+age <- as.factor(PHENOTYPES_LIPO$age)
+
+```
+
+```{r, message=FALSE, echo=FALSE, eval = FALSE}
+library(ggplot2)
+library(grid)
+library(gridExtra)
+
+Temp <- PHENOTYPES_LIPO[!(is.na(PHENOTYPES_LIPO$activq)) & !(PHENOTYPES_LIPO$cohort %in% c("control", "SLE","UC","CD")),][c(2,8,10)]
+p <- qplot(age, activq, group=Cohort, data = Temp)
+
+p + facet_wrap(~ Cohort) +
+    geom_box(aes(colour=factor(Cohort))) +
+    scale_colour_discrete()
+values <- cbind(values, PHENOTYPES_LIPO$cohort)
+names(values)[27] <- c("cohort")
+Temp <- values[!(values$cohort %in% c("control", "SLE","UC","CD")),]
+Temp <- cbind(Temp, PHENOTYPES_LIPO[!(PHENOTYPES_LIPO$cohort %in% c("control", "SLE","UC","CD")),]$age)
+names(Temp)[28] <- c("Age")
+Temp <- cbind(Temp, PHENOTYPES_LIPO[!(PHENOTYPES_LIPO$cohort %in% c("control", "SLE","UC","CD")),]$activq)
+names(Temp)[29] <- c("activq")
+p1 <- ggplot(Temp, aes(x=cut_interval(x=Age, length=25), y=activq, fill=cohort)) + geom_boxplot()
+p2 <- ggplot(Temp, aes(x=Age, colour=cohort)) + geom_density()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#CORRELATION
+
+##Epidemiologic/Technical vs Lipoproteic variables
+
+The following table contains the significativeness (-log10(p-value)) obtained from the correlation coefficient between the epidemiologic/technical variables and lipoproteic variables, using a correlation test, based on  Pearson's product moment correlation coefficient. Except the comparisons that included "gender", that were performed using a T-test:
+
+```{r, echo=FALSE, message=FALSE, results='asis'}
+names(values)[21:24] <- c("VLDL(nm)","LDL(nm)","HDL(nm)","Non-HDL-P")
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis', eval =FALSE}
+correlation <- data.frame(gender = numeric(0), bmi = numeric(0), age = numeric(0), fasting = numeric(0), time  = numeric(0))
+correlation2 <- data.frame(gender = numeric(0), bmi = numeric(0), age = numeric(0), fasting = numeric(0), time  = numeric(0))
+
+for (number in names(values)) {
+gend_cor <- t.test(as.matrix(values[[number]]) ~ as.numeric(gender))
+bmi_cor <- cor.test(values[[number]], PHENOTYPES_LIPO$bmi)
+age_cor <- cor.test(values[[number]], PHENOTYPES_LIPO$age)
+fast_cor <- cor.test(values[[number]], PHENOTYPES_LIPO$fasting)
+time_cor <- cor.test(values[[number]], PHENOTYPES_LIPO$time)
+
+correlation <- rbind(correlation, 
+                     setNames(as.list(c(-log10(gend_cor$p.value), 
+                                        -log10(bmi_cor$p.value), 
+                                        -log10(age_cor$p.value), 
+                                        -log10(fast_cor$p.value), 
+                                        -log10(time_cor$p.value))), names(correlation)))
+
+correlation2 <- rbind(correlation2, 
+                     setNames(as.list(c(gend_cor$estimate[1], 
+                                        bmi_cor$estimate, 
+                                        age_cor$estimate, 
+                                        fast_cor$estimate, 
+                                        time_cor$estimate)), names(correlation2)))
+}
+
+rownames(correlation) <- names(values)
+rownames(correlation2) <- names(values)
+
+ color_cells2 <- function(df, var){
+  out <- ifelse(as.numeric(substring(df[,var],2))>1.3,
+              paste0(substring(df[, var],2), "$^{*}$"),
+              paste0(substring(df[,var],2)))
+ }
+ 
+ color_cells <- function(df, var){
+  out <- ifelse(df[, var]>0, 
+                      paste0("+"),
+                      paste0("-"))
+ }
+ 
+ # apply coloring function to each column you want
+correlation2$gender <- color_cells(df = correlation2, var= 1)
+correlation$gender <- paste(correlation2$gender,round(correlation$gender,2), sep="")
+correlation$gender <- color_cells2(df = correlation, var = 1)
+correlation2$bmi <- color_cells(df = correlation2, var= 2)
+correlation$bmi <- paste(correlation2$bmi,round(correlation$bmi,2), sep="")
+correlation$bmi <- color_cells2(df = correlation, var = 2)
+correlation2$age <- color_cells(df = correlation2, var= 3)
+correlation$age <- paste(correlation2$age,round(correlation$age,2), sep="")
+correlation$age <- color_cells2(df = correlation, var = 3)
+correlation2$fasting <- color_cells(df = correlation2, var= 4)
+correlation$fasting <- paste(correlation2$fasting,round(correlation$fasting,2), sep="")
+correlation$fasting <- color_cells2(df = correlation, var = 4)
+correlation2$time <- color_cells(df = correlation2, var=5)
+correlation$time <- paste(correlation2$time,round(correlation$time,2), sep="")
+correlation$time <- color_cells2(df = correlation, var = 5)
+
+df <- xtable(correlation)
+align(df) <- "|c|c|c|c|c|c|"
+
+print(
+  df,
+  sanitize.text.function= function(x){x}
+)
+```
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/total11.png}
+    \caption{Pearson's product moment -log10(p-value) between the lipoproteic variables and epidemiologic and technical variables, except for gender that wich p-value was computed using a T-test. In red background the positive correlation coefficients with significant p-value, and in blue the ones correlated negatively}
+\end{figure}
+\newpage
+
+
+```{r, echo=FALSE, message=FALSE, results='asis'}
+ plot(PHENOTYPES_LIPO$fasting, values$`VLDL-T`, main = "Total VLDL vs Fasting", xlab= "Fasting (hours)", ylab = "VLDL-T (nmol/L)")
+```
+
+The previous plot represents the levels of VLDL of the different patients and the fasting hours. There are higher levels related with lower fasting periods (levels of VLDL increases after feeding) and lower levels of VLDL with higher fasting periods (es expected).
+
+Among the 26 variables that form the lipoproteic profile, the epidemiologic varaibles have the following total number of significative correlations:
+
+- Being the HDL-TG the lipoproteic variable with more significative correlations, showing significative correlations with all of the epidemiologic variables.
+
+- The epidemiologic variables with the highest number of significative correlations are "Age", "Time" and "BMI".
+
+- The most significant association is the one that relates "HDL-M" with "Gender"
+
+##Correlation between Epidemiologic/Technical variables
+
+Tables with p-values, obtained from the correlation between the epidemiologic variables (the comparison that included "gender" were performed using a T-test) for each cohort:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/corr_plots1.png}
+    \caption{-log10(p-values) of the correlation between the epidemiologic and technical variables}
+\end{figure}
+
+\begin{figure}[H]
+    \includegraphics[width=\textwidth]{Explor_img/corr_plots2.png}
+    \caption{-log10(p-values) of the correlation between the epidemiologic and technical variables}
+\end{figure}
+
+```{r, echo=FALSE, message=FALSE, results='asis', fig.align ="center", eval=FALSE}
+
+color_cells2 <- function(def, var){
+  out <- ifelse(as.numeric(as.character(def[,var]))>1.30,
+                paste0(def[, var], "$^{*}$"),
+                paste0(def[,var]))
+ }
+
+for (cohort1 in c("control","RA","PS","PA")){
+
+  correlation2 <- data.frame(time = numeric(0), bmi = numeric(0), gender = numeric(0), fasting = numeric(0), age  = numeric(0))
+  
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1,]$time
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1,]$bmi
+gender <- as.factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1,]$gender)
+fasting <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1,]$fasting
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1,]$age
+
+
+TB <- round(-log10(cor.test(time, bmi)$p.value),2)
+TG <- round(-log10(t.test(  time~gender)$p.value),2)
+TF <- round(-log10(cor.test(  time,  fasting)$p.value),2)
+TA <- round(-log10(cor.test(  time,  age)$p.value),2)
+BG <- round(-log10(t.test( bmi~gender)$p.value),2)
+BF <- round(-log10(cor.test( bmi,  fasting)$p.value),2)
+BA <- round(-log10(cor.test( bmi,  age)$p.value),2)
+GF <- round(-log10(t.test(fasting ~gender)$p.value),2)
+GA <- round(-log10(t.test(age~gender)$p.value),2)
+FA <- round(-log10(cor.test( fasting,  age)$p.value),2)
+
+correlation2 <- rbind(correlation2, 
+                      setNames(as.list(c(
+                        0,TB, TG, TF,TA
+                      )), names(correlation2)))
+correlation2 <- rbind(correlation2, 
+                      setNames(as.list(c(
+                        TB,0, BG, BF,BA
+                      )), names(correlation2)))
+correlation2 <- rbind(correlation2, 
+                      setNames(as.list(c(
+                        TG,BG, 0, GF, GA
+                      )), names(correlation2)))
+correlation2 <- rbind(correlation2, 
+                      setNames(as.list(c(
+                        TF,BF, GF, 0, FA
+                      )), names(correlation2)))
+correlation2 <- rbind(correlation2, 
+                      setNames(as.list(c(
+                        TA,BA, GA, FA, 0
+                      )), names(correlation2)))
+rownames(correlation2) <- names(correlation2)
+
+names(correlation2) <- c("Time","BMI","Gender","Fasting","Age")
+rownames(correlation2) <- c("Time","BMI","Gender","Fasting","Age")
+
+ for (column in c(1:5)){
+   correlation2[,column] <- color_cells2(def = correlation2, var = column)
+ }
+
+print(xtable(correlation2, digits = c(2,2,2,2,2,2), caption = c(cohort1)), 
+      comment=F,
+      sanitize.text.function= function(x){x}
+  )
+}
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis',eval=FALSE}
+for (cohort1 in c("control","RA","PS","PA")){
+  Age.int <- data.frame(Time = character(), BMI = character(), Fasting = character(), Age = character(), stringsAsFactors = F)
+  variable1 <- subset(PHENOTYPES_LIPO, cohort == cohort1 & gender == 1, c("time","bmi","fasting","age"))
+  variable2 <- subset(PHENOTYPES_LIPO, cohort == cohort1 & gender == 2, c("time","bmi","fasting","age"))
+  meansd1 <- apply(variable1,2,function(x) {paste(paste(round(mean(x),2),"$\\pm$"),round(sd(x),2))})
+  meansd2 <- apply(variable2,2,function(x) {paste(paste(round(mean(x),2),"$\\pm$"),round(sd(x),2))})
+  Age.int <- rbind(Age.int, data.frame(as.list(meansd1), stringsAsFactors=F))
+  Age.int <- rbind(Age.int, data.frame(as.list(meansd2), stringsAsFactors=F))
+  rownames(Age.int) <- c("Male","Female")
+  names(Age.int) <- c("Time","BMI","Fasting","Age")
+  print(xtable(Age.int, digits = c(0,2,2,2,2)), comment=F,sanitize.text.function= function(x){x})
+}
+```
+
+The strong correlation between the "Time until processing" and the Gender or Age can not be explained clearly with the available evidences. But the correlation with the "Fasting" might be due to the laboratory workflow and the schedule of transport of samples, so the samples taken out the scheduled period of extraction, might be delivered to the laboratory when it was possible (not at an exact hour)  (Figure 11-12).
+
+The BMI correlation with the "Gender" and "Age" show different trends depending on the disease. For UC, PS, PA and UC males have a higher BMI on average than females, while in Controls, CD and CD the trend is reversed. In both cases, BMI tends to increase when we age  (Age-BMI correlation). 
+  
+```{r, echo=FALSE, fig.align="center", fig.height=3.75, fig.width=5}
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$bmi,PHENOTYPES_LIPO$age)$p.value)
+texto <- paste("Age-BMI correlation ", round(p.value, 2))
+plot(PHENOTYPES_LIPO$age,PHENOTYPES_LIPO$bmi, xlab = "Age (years)", ylab = "BMI", main = texto)
+model <- lm(PHENOTYPES_LIPO$bmi~PHENOTYPES_LIPO$age)
+abline(model)
+```
+
+\blandscape
+
+##Correlation between Lipoproteic variables
+
+\begin{figure}[H]
+    \centering
+    \textbf{Correlation between lipoprotein variables}\par\medskip
+    \includegraphics[width=1.2\textwidth]{Explor_img/tab11.png}
+    \caption{-log10(p-values) of the correlation between the lipoproteic variables, using the previously described colouring code (red for positive correlations and blue for the negative ones)}
+\end{figure}
+
+\newpage
+
+\begin{figure}[H]
+    \centering
+    \textbf{Correlation between lipoprotein variables}\par\medskip
+    \includegraphics[width=1.2\textwidth]{Explor_img/tab12.png}
+    \caption{-log10(p-values) of the correlation between the lipoproteic variables (continuation)}
+\end{figure}
+
+\elandscape
+
+\begin{figure}[H]
+    \centering
+    \textbf{Correlation between lipoprotein variables}\par\medskip
+    \includegraphics[]{Explor_img/tab3.png}
+    \caption{-log10(p-values) of the correlation between the lipoproteic variables(continuation)}
+\end{figure}
+
+\newpage
+
+```{r, echo=FALSE, message=FALSE, results='asis', fig.height=4, eval=FALSE}
+names(values)[21:24] <- c("VLDL(nm)","LDL(nm)","HDL(nm)","Non-HDL-P")
+
+ color_cells2 <- function(df, var){
+  out <- ifelse(as.numeric(substring(df[,var],2))>1.3,
+              paste0(substring(df[, var],2), "$^{*}$"),
+              paste0(substring(df[,var],2)))
+ }
+ 
+ color_cells <- function(df, var){
+  out <- ifelse(df[, var]>0, 
+                      paste0("+"),
+                      paste0("-"))
+ }
+
+Age.pval <- data.frame(VLDLC = numeric(0), IDLC = numeric(0), LDLC = numeric(0) , HDLC = numeric(0), VLDLTG = numeric(0), IDLTG = numeric(0), LDLTG = numeric(0), HDLTG = numeric(0), VLDLT = numeric(0), VLDLL = numeric(0) , VLDLM = numeric(0), VLDLS = numeric(0), LDLT = numeric(0), LDLL = numeric(0), LDLM = numeric(0), LDLS = numeric(0), HDLT = numeric(0) , HDLL = numeric(0), HDLM = numeric(0), HDLS = numeric(0), VLDL = numeric(0), LDL = numeric(0), HDL = numeric(0), NonHDLP = numeric(0) , TotPHDLP = numeric(0), LDLPHDLP = numeric(0))
+
+Age.pval2 <- data.frame(VLDLC = numeric(0), IDLC = numeric(0), LDLC = numeric(0) , HDLC = numeric(0), VLDLTG = numeric(0), IDLTG = numeric(0), LDLTG = numeric(0), HDLTG = numeric(0), VLDLT = numeric(0), VLDLL = numeric(0) , VLDLM = numeric(0), VLDLS = numeric(0), LDLT = numeric(0), LDLL = numeric(0), LDLM = numeric(0), LDLS = numeric(0), HDLT = numeric(0) , HDLL = numeric(0), HDLM = numeric(0), HDLS = numeric(0), VLDL = numeric(0), LDL = numeric(0), HDL = numeric(0), NonHDLP = numeric(0) , TotPHDLP = numeric(0), LDLPHDLP = numeric(0))
+
+for (column in values){
+  values1 = c()
+  values2 = c()
+  for (column2 in values){
+   values1 <- c(values1, -log10(cor.test(column, column2)$p.value))
+   values2 <- c(values2, cor(column, column2, use = "pairwise.complete.obs"))
+                          }
+  Age.pval <- rbind(Age.pval, setNames(as.list(values1),names(Age.pval)))
+  Age.pval2 <- rbind(Age.pval2, setNames(as.list(values2),names(Age.pval2)))
+}
+
+names(Age.pval) <- names(values)
+rownames(Age.pval) <- names(Age.pval)
+names(Age.pval2) <- names(values)
+rownames(Age.pval2) <- names(Age.pval2)
+
+Age.pval2$`VLDL-C` <- color_cells(df = Age.pval2, var= 1)
+Age.pval$`VLDL-C`<- paste(Age.pval2$`VLDL-C`,round(Age.pval$`VLDL-C`,2), sep="")
+Age.pval$`VLDL-C` <- color_cells2(df = Age.pval, var = 1)
+Age.pval2$`IDL-C` <- color_cells(df = Age.pval2, var= 2)
+Age.pval$`IDL-C`<- paste(Age.pval2$`IDL-C`,round(Age.pval$`IDL-C`,2), sep="")
+Age.pval$`IDL-C` <- color_cells2(df = Age.pval, var = 2)
+Age.pval2$`LDL-C` <- color_cells(df = Age.pval2, var= 3)
+Age.pval$`LDL-C`<- paste(Age.pval2$`LDL-C`,round(Age.pval$`LDL-C`,2), sep="")
+Age.pval$`LDL-C` <- color_cells2(df = Age.pval, var = 3)
+Age.pval2$`HDL-C` <- color_cells(df = Age.pval2, var= 4)
+Age.pval$`HDL-C`<- paste(Age.pval2$`HDL-C`,round(Age.pval$`HDL-C`,2), sep="")
+Age.pval$`HDL-C` <- color_cells2(df = Age.pval, var = 4)
+Age.pval2$`VLDL-TG` <- color_cells(df = Age.pval2, var= 5)
+Age.pval$`VLDL-TG`<- paste(Age.pval2$`VLDL-TG`,round(Age.pval$`VLDL-TG`,2), sep="")
+Age.pval$`VLDL-TG` <- color_cells2(df = Age.pval, var = 5)
+Age.pval2$`IDL-TG` <- color_cells(df = Age.pval2, var= 6)
+Age.pval$`IDL-TG`<- paste(Age.pval2$`IDL-TG`,round(Age.pval$`IDL-TG`,2), sep="")
+Age.pval$`IDL-TG` <- color_cells2(df = Age.pval, var = 6)
+Age.pval2$`LDL-TG` <- color_cells(df = Age.pval2, var= 7)
+Age.pval$`LDL-TG`<- paste(Age.pval2$`LDL-TG`,round(Age.pval$`LDL-TG`,2), sep="")
+Age.pval$`LDL-TG` <- color_cells2(df = Age.pval, var = 7)
+Age.pval2$`HDL-TG` <- color_cells(df = Age.pval2, var= 8)
+Age.pval$`HDL-TG`<- paste(Age.pval2$`HDL-TG`,round(Age.pval$`HDL-TG`,2), sep="")
+Age.pval$`HDL-TG` <- color_cells2(df = Age.pval, var = 8)
+Age.pval2$`VLDL-T` <- color_cells(df = Age.pval2, var= 9)
+Age.pval$`VLDL-T`<- paste(Age.pval2$`VLDL-T`,round(Age.pval$`VLDL-T`,2), sep="")
+Age.pval$`VLDL-T` <- color_cells2(df = Age.pval, var = 9)
+Age.pval2$`VLDL-L` <- color_cells(df = Age.pval2, var= 10)
+Age.pval$`VLDL-L`<- paste(Age.pval2$`VLDL-L`,round(Age.pval$`VLDL-L`,2), sep="")
+Age.pval$`VLDL-L` <- color_cells2(df = Age.pval, var = 10)
+Age.pval2$`VLDL-M` <- color_cells(df = Age.pval2, var= 11)
+Age.pval$`VLDL-M`<- paste(Age.pval2$`VLDL-M`,round(Age.pval$`VLDL-M`,2), sep="")
+Age.pval$`VLDL-M` <- color_cells2(df = Age.pval, var = 11)
+Age.pval2$`VLDL-S` <- color_cells(df = Age.pval2, var= 12)
+Age.pval$`VLDL-S`<- paste(Age.pval2$`VLDL-S`,round(Age.pval$`VLDL-S`,2), sep="")
+Age.pval$`VLDL-S` <- color_cells2(df = Age.pval, var = 12)
+Age.pval2$`LDL-T` <- color_cells(df = Age.pval2, var= 13)
+Age.pval$`LDL-T`<- paste(Age.pval2$`LDL-T`,round(Age.pval$`LDL-T`,2), sep="")
+Age.pval$`LDL-T` <- color_cells2(df = Age.pval, var = 13)
+Age.pval2$`LDL-L` <- color_cells(df = Age.pval2, var= 14)
+Age.pval$`LDL-L`<- paste(Age.pval2$`LDL-L`,round(Age.pval$`LDL-L`,2), sep="")
+Age.pval$`LDL-L` <- color_cells2(df = Age.pval, var = 14)
+Age.pval2$`LDL-M` <- color_cells(df = Age.pval2, var= 15)
+Age.pval$`LDL-M`<- paste(Age.pval2$`LDL-M`,round(Age.pval$`LDL-M`,2), sep="")
+Age.pval$`LDL-M` <- color_cells2(df = Age.pval, var = 15)
+Age.pval2$`LDL-S` <- color_cells(df = Age.pval2, var= 16)
+Age.pval$`LDL-S`<- paste(Age.pval2$`LDL-S`,round(Age.pval$`LDL-S`,2), sep="")
+Age.pval$`LDL-S` <- color_cells2(df = Age.pval, var = 16)
+Age.pval2$`HDL-T` <- color_cells(df = Age.pval2, var= 17)
+Age.pval$`HDL-T`<- paste(Age.pval2$`HDL-T`,round(Age.pval$`HDL-T`,2), sep="")
+Age.pval$`HDL-T` <- color_cells2(df = Age.pval, var = 17)
+Age.pval2$`HDL-L` <- color_cells(df = Age.pval2, var= 18)
+Age.pval$`HDL-L`<- paste(Age.pval2$`HDL-L`,round(Age.pval$`HDL-L`,2), sep="")
+Age.pval$`HDL-L` <- color_cells2(df = Age.pval, var = 18)
+Age.pval2$`HDL-M` <- color_cells(df = Age.pval2, var= 19)
+Age.pval$`HDL-M`<- paste(Age.pval2$`HDL-M`,round(Age.pval$`HDL-M`,2), sep="")
+Age.pval$`HDL-M` <- color_cells2(df = Age.pval, var = 19)
+Age.pval2$`HDL-S` <- color_cells(df = Age.pval2, var= 20)
+Age.pval$`HDL-S`<- paste(Age.pval2$`HDL-S`,round(Age.pval$`HDL-S`,2), sep="")
+Age.pval$`HDL-S` <- color_cells2(df = Age.pval, var = 20)
+Age.pval2$`VLDL(nm)` <- color_cells(df = Age.pval2, var= 21)
+Age.pval$`VLDL(nm)`<- paste(Age.pval2$`VLDL(nm)`,round(Age.pval$`VLDL(nm)`,2), sep="")
+Age.pval$`VLDL(nm)` <- color_cells2(df = Age.pval, var = 21)
+Age.pval2$`LDL(nm)` <- color_cells(df = Age.pval2, var= 22)
+Age.pval$`LDL(nm)`<- paste(Age.pval2$`LDL(nm)`,round(Age.pval$`LDL(nm)`,2), sep="")
+Age.pval$`LDL(nm)` <- color_cells2(df = Age.pval, var = 22)
+Age.pval2$`HDL(nm)` <- color_cells(df = Age.pval2, var= 23)
+Age.pval$`HDL(nm)`<- paste(Age.pval2$`HDL(nm)`,round(Age.pval$`HDL(nm)`,2), sep="")
+Age.pval$`HDL(nm)` <- color_cells2(df = Age.pval, var = 23)
+Age.pval2$`Non-HDL-P` <- color_cells(df = Age.pval2, var= 24)
+Age.pval$`Non-HDL-P`<- paste(Age.pval2$`Non-HDL-P`,round(Age.pval$`Non-HDL-P`,2), sep="")
+Age.pval$`Non-HDL-P` <- color_cells2(df = Age.pval, var = 24)
+Age.pval2$`Total-P/HDL-P` <- color_cells(df = Age.pval2, var= 25)
+Age.pval$`Total-P/HDL-P`<- paste(Age.pval2$`Total-P/HDL-P`,round(Age.pval$`Total-P/HDL-P`,2), sep="")
+Age.pval$`Total-P/HDL-P` <- color_cells2(df = Age.pval, var = 25)
+Age.pval2$`LDL-P/HDL-P` <- color_cells(df = Age.pval2, var= 26)
+Age.pval$`LDL-P/HDL-P`<- paste(Age.pval2$`LDL-P/HDL-P`,round(Age.pval$`LDL-P/HDL-P`,2), sep="")
+Age.pval$`LDL-P/HDL-P` <- color_cells2(df = Age.pval, var = 26)
+
+df <- xtable(Age.pval[1:26,1:16])
+align(df) <- "|c|c|c|c|c|c|c|c|c|c|c|c|c|"
+print(
+  df,
+  sanitize.text.function= function(x){x}
+)
+
+df <- xtable(Age.pval[1:26,17:26])
+align(df) <- "|c|c|c|c|c|c|c|c|c|c|c|"
+print(
+  df,
+  sanitize.text.function= function(x){x}
+)
+
+df <- xtable(Age.pval[1:26,24:26])
+align(df) <- "|c|c|c|c|"
+print(
+  df,
+  sanitize.text.function= function(x){x}
+)
+
+```
+  
+```{r, echo=FALSE, message=FALSE, results='asis', fig.height=4, eval=FALSE}
+\blandscape
+print(xtable(Age.int, caption = "Mean and SD of each lipoproteic variable by cohorts"), comment=F, sanitize.text.function= function(x){x})
+\elandscape
+ 
+
+**Lipoproteic variables correlation**
+
+- Exploring the correlations with the colesterol (Ch or C) variables, it is consistent since there are mechanisms that connect all significative correlations. In this case very low density lipoprotein's cholesterol (VLDL-C), intermediate density lipoprotein's cholesterol (IDL-C) and high density lipoprotein's cholesterol (HDL-C) are related because the plasma protein Cholesteryl ester transfer protein (CETP) exchanges cholesterol by triacylglycerides (TAG) between HDL and VLDL, that become IDL. While low density lipoprotein (LDL) are not affected by this effect.
+
+- The significative correlations regarding the TAG and Ch are due to the fact that the CETP participates in the process of balancing the TAG/Ch levels between VLDL, IDL and HDL. Another important fact is that VLDL, IDL and LDL are different stages of the same particule, so they may inherit some features. 
+
+- Different particule size VLDL concentration correlates strongly with VLDL cholesterol and TAG (-log10(pvalue) > 100). Another consistent group of significative correlations is the one that relates VLDL concentration and the size of VLDL, LDL and HDL.
+
+- Regarding LDL concentration, there is a strong correlation with the content in Ch (-log10(pvalue) > 100) but this correlation is not so strong with the TAG content. Another strong correlation is the one relating LDL concentration and "Non HDL-P", this may be due to the fact that LDL is the most abundant lipoprotein in the samples (this explains also the correlation with "Total-P/HDL-P" and "LDL-P/HDL-P").
+
+- If we focus on HDL concentration there is an inverse correlation in the significance between the particule size of HDL and the Ch and TAG levels of the serie VLDL/IDL/LDL. The small HDL have a stronger correlation with large particules (VLDL) but this trend is reversed when we talk about large HDL which are more significatively correlated with smaller particules (LDL). This fact can be explined because small HDL are able to exchange Ch by TAG from VLDL (which are full of TAG), while large HDL (full of TAG and unable to carry more) can interact with LDL (carry a high percentage of Ch) exchanging TAG by Ch. The main contributor to the total HDL concentration is the small HDL (most active form to the retrograde transport of lipids), followed by the medium size HDL.
+
+- The size of the lipoproteins is mainly correlated with the content in Ch and TAG of VLDL, and they are also related with the concentration of VLDL. This fact may be explained because VLDL is the origin of the following stages of the liporoteins IDL and LDL, and on the other hand, VLDL and IDL interact with HDL exchanging lipids, and therefore determining their size. Exploring the correlation between lipoprotein sizes, there are a high correlation between the size of LDL and HDL.
+
+- Looking at the HDL-related variables (Non-HDL-P, Total-P/HDL-P and LDL-P/HDL-P) all three are strongly correlated with LDL variables such as Ch, TG and concentration. This fact is due to that LDL is the main component of the total lipoprotein concentration, and therefore the variable that influence the most the final result. Regarding the paper of HDL in this variables, the medium and small HDL are significatively correlated with the variables divided by HDL-P, because are the main contributors to the total HDL concentration. Finally Total-P/HDL-P and LDL-P/HDL-Pare strong correlation is explained because LDL-P is the biggest part of Total-P.
+
+\newpage
+``` 
+
+##Correlation between Samples
+
+In this subsection we computed the Pearson's correlation between samples. Then the mean Pearson's correlation coefficient was used to plot the distribution of mean values among samples:
+
+```{r, echo=FALSE, message=FALSE, fig.width=6, fig.height=6, fig.align ="center",warning=FALSE}
+rownames(values) <- LiposcaleResults[LiposcaleResults$`Sample ID Client` %in% PHENOTYPES_LIPO$sampleID,]$`Sample ID Client`
+pear_corr <- cor(t(values), use="complete.obs", method="spearman" )
+library("corrplot")
+jpeg(filename="corr_plot.jpeg", height=5, width=5, units = "in", res=500)
+corrplot(pear_corr, method = "color", tl.cex = 0.2)
+dev.off()
+pear_corr_mean <- (colSums(pear_corr, na.rm = TRUE, dims = 1) -1)/(ncol(pear_corr)-1)
+pear_corr_mean <- data.frame(pear_corr_mean)
+mean_pear <- apply(pear_corr_mean,2,mean)
+sd_pear <- apply(pear_corr_mean,2,sd)
+total <- sum(pear_corr_mean < (mean_pear-(2*sd_pear)))
+outliers <- LiposcaleResults$`Sample ID Client`[which(pear_corr_mean < 0.85)]
+outliers2 <- PHENOTYPES_LIPO[c(which(pear_corr_mean < 0.85)),]$Cohort
+```
+
+```{r, echo=FALSE, message=FALSE, fig.width=6, fig.height=3, fig.align ="center",warning=FALSE}
+hist(pear_corr_mean$pear_corr_mean, breaks =100, main = "Mean spearman correlation distribution", xlab = "Mean Correlation Value", xlim = c(0.75,1))
+abline(v=0.91, col="red")
+#abline(v=(mean(pear_corr_mean$pear_corr_mean)-2*sd(pear_corr_mean$pear_corr_mean)), col="red")
+```
+
+Samples with a person correlation mean below 0.91 will be discarded (bad conservation state): 
+
+- Sample code: `r outliers`.
+
+- Cohort: `r outliers2`.
+
+This samples will be removed.
+
+```{r echo=FALSE, message=FALSE}
+values <- values[c(which(pear_corr_mean > 0.91)),]
+PHENOTYPES_LIPO <- PHENOTYPES_LIPO[c(which(pear_corr_mean > 0.91)),]
+```
+
+#Principal Components Analysis
+
+Principal Components Analysis of the lipoproteic variables by samples. 
+
+Analysis of the variance associated to each Principal Component and Cumulative variance by Principal Component. 
+  
+```{r, echo=FALSE, message=FALSE, results='asis', fig.height=3, eval =FALSE}  
+library(factoextra)
+ch_PCA <- PCA(values, ncp=5, graph=F) 
+fviz_pca_ind(ch_PCA, label="none", addEllipses=TRUE, ellipse.level=0.95)
+fviz_pca_ind(ch_PCA, label="none", habillage = PHENOTYPES_LIPO$cohort, addEllipses=TRUE, ellipse.level=0.95)
+
+# You can calculate loadings by dividing variables' coordinates on a dimension by this dimension's eigenvalue's square root.
+ch_PCA$var$load <- sweep(ch_PCA$var$coord,2,sqrt(ch_PCA$eig[1:ncol(ch_PCA$var$coord),1]),FUN="/")
+
+barplot(ch_PCA$var$load[,1][order(as.numeric(ch_PCA$var$load[,1]))], las = 2)
+
+qplot(ch_PCA$var$load[,1], ch_PCA$var$load[,2]) + geom_text(aes(label = rownames(ch_PCA$var$load),hjust=0, vjust=0))
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis', fig.height=3}
+colfunc <- colorRampPalette(c("yellow","blue")) 
+
+ch_PCA <- PCA(values, ncp=5, graph=F) 
+
+barplot(ch_PCA$eig$`percentage of variance`, names.arg = c(1:26), main = "Percentage of variance by Principal Component", xlab = "Principal Component", ylab = "Percentage of variance")
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis', fig.height=3}
+plot(ch_PCA$eig$`cumulative percentage of variance`, main = "Cumulative percentage of variance", xlab = "Principal Component", ylab = "Percentage of variance")
+grid(lty = 5)
+```
+
+Previous plots show that most of the variance is explained with the three first Principal Components, with more than 80% of the variance. To achieve more than 90% of variance, 5 first Components should be considered.
+\newpage
+Clustering analysis of Principal components using the Epidemiologic/Technical variables as a colouring code.
+
+```{r, echo=FALSE, message=FALSE, results='asis', fig.height=3}
+layout(matrix(1:2,ncol=2), width = c(2,1),height = c(1,1))
+palette(colfunc(length(table(PHENOTYPES_LIPO$time))))
+par(xpd = T, mar = par()$mar + c(0,0,0,1))
+plot(ch_PCA$ind$coord[,1], ch_PCA$ind$coord[,2], 
+     pch = 19, 
+     col = time, 
+     xlab = paste(paste("PCA1 ", round(ch_PCA$eig$`percentage of variance`[1])),"%"),
+     ylab = paste(paste("PCA2 ", round(ch_PCA$eig$`percentage of variance`[2])),"%"),  
+     main = "Time until processing - PCA",
+     cex=0.5)
+
+legend_image <- as.raster(matrix(colfunc(length(table(PHENOTYPES_LIPO$time))), ncol=1))
+plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', main = 'Time (min)')
+text(x=1.25, y = seq(0,1,l=5), labels = seq(min(PHENOTYPES_LIPO$time),max(PHENOTYPES_LIPO$time),l=5))
+rasterImage(legend_image, 0, 0, 0.5,1)
+```
+\vspace{5mm}
+```{r, echo=FALSE, fig.height=3}
+par(mfrow = c(1,3))
+par(xpd=F)
+par(mgp=c(2,1,0))
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$time,ch_PCA$ind$coord[,1])$p.value)
+texto <- paste("Corr PCA1-Time \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$time,ch_PCA$ind$coord[,1], xlab="Time (min)", ylab = "PCA1", main = texto)
+model <- lm(ch_PCA$ind$coord[,1]~PHENOTYPES_LIPO$time)
+abline(model)
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$time,ch_PCA$ind$coord[,2])$p.value)
+texto <- paste("Corr PCA2-Time \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$time,ch_PCA$ind$coord[,2], xlab="Time (min)", ylab = "PCA2", main = texto)
+model <- lm(ch_PCA$ind$coord[,2]~PHENOTYPES_LIPO$time)
+abline(model)
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$time,ch_PCA$ind$coord[,3])$p.value)
+texto <- paste("Corr PCA3-Time \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$time,ch_PCA$ind$coord[,3], xlab="Time (min)", ylab = "PCA3", main = texto)
+model <- lm(ch_PCA$ind$coord[,3]~PHENOTYPES_LIPO$time)
+abline(model)
+#summary(model)
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis', fig.height=3}
+
+layout(matrix(1:2,ncol=2), width = c(2,1),height = c(1,1))
+palette(colfunc(length(table(PHENOTYPES_LIPO$bmi))))
+plot(ch_PCA$ind$coord[,1], ch_PCA$ind$coord[,2], 
+     pch = 19,
+     col = palette(colfunc(length(table(PHENOTYPES_LIPO$bmi)))),
+     xlab = paste(paste("PCA1 ", round(ch_PCA$eig$`percentage of variance`[1])),"%"),
+     ylab = paste(paste("PCA2 ", round(ch_PCA$eig$`percentage of variance`[2])),"%"),  
+     main = "BMI - PCA",
+     cex=0.5)
+
+legend_image <- as.raster(matrix(colfunc(length(table(PHENOTYPES_LIPO$bmi))), ncol=1))
+plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', main = 'BMI')
+text(x=1.25, y = seq(0,1,l=5), labels = seq(round(min(PHENOTYPES_LIPO$bmi),1),round(max(PHENOTYPES_LIPO$bmi),1),l=5))
+rasterImage(legend_image, 0, 0, 0.5,1)
+```
+\vspace{5mm}
+```{r, echo=FALSE,fig.height=3}
+par(mfrow = c(1,3))
+par(mgp=c(2,1,0))
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$bmi,ch_PCA$ind$coord[,1])$p.value)
+texto <- paste("Corr PCA1-BMI \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$bmi,ch_PCA$ind$coord[,1], xlab="BMI", ylab = "PCA1", main = texto)
+model <- lm(ch_PCA$ind$coord[,1]~PHENOTYPES_LIPO$bmi)
+abline(model)
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$bmi,ch_PCA$ind$coord[,2])$p.value)
+texto <- paste("Corr PCA2-BMI \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$bmi,ch_PCA$ind$coord[,2], xlab="BMI", ylab = "PCA2", main = texto)
+model <- lm(ch_PCA$ind$coord[,2]~PHENOTYPES_LIPO$bmi)
+abline(model)
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$bmi,ch_PCA$ind$coord[,3])$p.value)
+texto <- paste("Corr PCA3-BMI \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$bmi,ch_PCA$ind$coord[,3], xlab="BMI", ylab = "PCA3", main = texto)
+model <- lm(ch_PCA$ind$coord[,3]~PHENOTYPES_LIPO$bmi)
+abline(model)
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis', fig.height=3}
+
+layout(matrix(1:2,ncol=2), width = c(2,1),height = c(1,1))
+palette(colfunc(length(table(PHENOTYPES_LIPO$fasting))))
+plot(ch_PCA$ind$coord[,1], ch_PCA$ind$coord[,2], 
+     pch = 19,
+     col = fasting,
+     xlab = paste(paste("PCA1 ", round(ch_PCA$eig$`percentage of variance`[1])),"%"),
+     ylab = paste(paste("PCA2 ", round(ch_PCA$eig$`percentage of variance`[2])),"%"),  
+     main = "Fasting - PCA",
+     cex=0.5)
+
+legend_image <- as.raster(matrix(colfunc(length(table(PHENOTYPES_LIPO$fasting))), ncol=1))
+plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', main = 'fasting')
+text(x=1.25, y = seq(0,1,l=5), labels = seq(round(min(PHENOTYPES_LIPO$fasting),1),round(max(PHENOTYPES_LIPO$fasting),1),l=5))
+rasterImage(legend_image, 0, 0, 0.5,1)
+
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$fasting,ch_PCA$ind$coord[,1])$p.value)
+```
+\vspace{5mm}
+```{r, echo=FALSE,fig.height=3}
+par(mfrow = c(1,3))
+par(mgp=c(2,1,0))
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$fasting,ch_PCA$ind$coord[,1])$p.value)
+texto <- paste("Corr PCA1-Fasting \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$fasting,ch_PCA$ind$coord[,1], xlab="Fasting (min)", ylab = "PCA1", main = texto)
+model <- lm(ch_PCA$ind$coord[,1]~PHENOTYPES_LIPO$fasting)
+abline(model)
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$fasting,ch_PCA$ind$coord[,2])$p.value)
+texto <- paste("Corr PCA2-Fasting \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$fasting,ch_PCA$ind$coord[,2], xlab="Fasting (min)", ylab = "PCA2", main = texto)
+model <- lm(ch_PCA$ind$coord[,2]~PHENOTYPES_LIPO$fasting)
+abline(model)
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$fasting,ch_PCA$ind$coord[,3])$p.value)
+texto <- paste("Corr PCA3-Fasting \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$fasting,ch_PCA$ind$coord[,3], xlab="Fasting (min)", ylab = "PCA3", main = texto)
+model <- lm(ch_PCA$ind$coord[,3]~PHENOTYPES_LIPO$fasting)
+abline(model)
+#summary(model)
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis', fig.height=3}
+
+layout(matrix(1:2,ncol=2), width = c(2,1),height = c(1,1))
+palette(colfunc(length(table(PHENOTYPES_LIPO$age))))
+plot(ch_PCA$ind$coord[,1], ch_PCA$ind$coord[,2], 
+     pch = 19,
+     col = age,
+     xlab = paste(paste("PCA1 ", round(ch_PCA$eig$`percentage of variance`[1])),"%"),
+     ylab = paste(paste("PCA2 ", round(ch_PCA$eig$`percentage of variance`[2])),"%"),  
+     main = "Age - PCA",
+     cex=0.5)
+
+legend_image <- as.raster(matrix(colfunc(length(table(PHENOTYPES_LIPO$age))), ncol=1))
+plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', main = 'Years')
+text(x=1.25, y = seq(0,1,l=5), labels = seq(round(min(PHENOTYPES_LIPO$age),1),round(max(PHENOTYPES_LIPO$age),1),l=5))
+rasterImage(legend_image, 0, 0, 0.5,1)
+
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$age,ch_PCA$ind$coord[,1])$p.value)
+```
+\vspace{5mm}
+```{r, echo=FALSE,fig.height=3}
+par(mfrow = c(1,3))
+par(mgp=c(2,1,0))
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$age,ch_PCA$ind$coord[,1])$p.value)
+texto <- paste("Corr PCA1-Age \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$age,ch_PCA$ind$coord[,1], xlab="Age (years)", ylab = "PCA1", main = texto)
+model <- lm(ch_PCA$ind$coord[,1]~PHENOTYPES_LIPO$age)
+abline(model)
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$age,ch_PCA$ind$coord[,2])$p.value)
+texto <- paste("Corr PCA2-Age \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$age,ch_PCA$ind$coord[,2], xlab="Age (years)", ylab = "PCA2", main = texto)
+model <- lm(ch_PCA$ind$coord[,2]~PHENOTYPES_LIPO$age)
+abline(model)
+p.value <- -log10(cor.test(PHENOTYPES_LIPO$age,ch_PCA$ind$coord[,3])$p.value)
+texto <- paste("Corr PCA3-Age \n -log10(p.value): ", round(p.value,2))
+plot(PHENOTYPES_LIPO$age,ch_PCA$ind$coord[,3], xlab="Age (years)", ylab = "PCA3", main = texto)
+model <- lm(ch_PCA$ind$coord[,3]~PHENOTYPES_LIPO$age)
+abline(model)
+#summary(model)
+```
+
+```{r, message=FALSE, echo=FALSE, fig.height=3}
+palette(c("red","green"))
+par(xpd = T, mar = par()$mar + c(0,0,0,1))
+plot(ch_PCA$ind$coord[,1], ch_PCA$ind$coord[,2], 
+     pch = 19, 
+     col = gender, 
+     xlab = paste(paste("PCA1 ", round(ch_PCA$eig$`percentage of variance`[1])),"%"),
+     ylab = paste(paste("PCA2 ", round(ch_PCA$eig$`percentage of variance`[2])),"%"),  
+     main = "Gender - PCA",
+     cex=0.5)
+legend(x = 17, y = 0, legend = names(table(PHENOTYPES_LIPO$gender)),pch = c(15,15,15,15,15,15,15), col = c("red","green"), y.intersp = 0.75,bty = "n", cex=0.75)
+par(mar=c(5, 4, 4, 2) + 0.1)
+```
+\vspace{5mm}
+```{r, echo=FALSE,fig.height=3}
+par(mfrow = c(1,3))
+par(mgp=c(2,1,0))
+p.value <- -log10(t.test(ch_PCA$ind$coord[,1] ~ PHENOTYPES_LIPO$gender)$p.value)
+texto <- paste("Assoc PCA1-Gender \n -log10(p.value): ", round(p.value,2))
+boxplot(ch_PCA$ind$coord[,1]~PHENOTYPES_LIPO$gender, main = texto)
+ 
+p.value <- -log10(t.test(ch_PCA$ind$coord[,2] ~ PHENOTYPES_LIPO$gender)$p.value)
+texto <- paste("Assoc PCA2-Gender \n -log10(p.value): ", round(p.value,2))
+boxplot(ch_PCA$ind$coord[,2]~PHENOTYPES_LIPO$gender, main = texto)
+
+p.value <- -log10(t.test(ch_PCA$ind$coord[,3] ~ PHENOTYPES_LIPO$gender)$p.value)
+texto <- paste("Assoc PCA3-Gender \n -log10(p.value): ", round(p.value,2))
+boxplot(ch_PCA$ind$coord[,3]~PHENOTYPES_LIPO$gender, main = texto)
+
+#summary(model)
+```
+
+After this analysis, we can conclude that the Gender and the 3rd principal component of the lipoproteic profile is the most significantly correlated, followed by the first principal component and Age and the BMI.
+
+\newpage
+
+#Association analysis
+
+In this first approach we evaluated the association between each one of the lipoproteic variables, adjusted for the epidemiologic and technical variables (as covariables) with the diagnose of each one of the diseases as response variable, comparing each cohort against controls, disease activity levels and quantitative disease acitvity independently.
+
+```{r, echo=FALSE,fig.height=4}
+values <- cbind(values, PHENOTYPES_LIPO$cohort)
+names(values)[27] <- c("cohort")
+names(values) <- gsub("-","_",names(values))
+names(values) <- gsub("[(]","_",names(values))
+names(values) <- gsub("[)]","",names(values))
+names(values) <- gsub("[/]","_",names(values))
+```
+
+##Cohort association
+
+First a logistic regression analysis will be used to test the association between the lipoproteic variables and the diagnose/cohort as a response. To do so, each group of samples from the same cohort was evaluated against control group.
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "RA" | values$cohort == "control",]
+DISEASE$cohort <- factor(DISEASE$cohort)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control",]$time
+
+df <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+
+```
+  
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "SLE" | values$cohort == "control",]
+DISEASE$cohort <- factor(DISEASE$cohort)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+    
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "PS" | values$cohort == "control",]
+DISEASE$cohort <- factor(DISEASE$cohort)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "control",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "control",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "control",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "control",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "control",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+  
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "PA" | values$cohort == "control",]
+DISEASE$cohort <- factor(DISEASE$cohort)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "control",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "control",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "control",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "control",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "control",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+  
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "UC" | values$cohort == "control",]
+DISEASE$cohort <- factor(DISEASE$cohort)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC" | PHENOTYPES_LIPO$cohort == "control",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC" | PHENOTYPES_LIPO$cohort == "control",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC" | PHENOTYPES_LIPO$cohort == "control",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC" | PHENOTYPES_LIPO$cohort == "control",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC" | PHENOTYPES_LIPO$cohort == "control",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+  
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "CD" | values$cohort == "control",]
+DISEASE$cohort <- factor(DISEASE$cohort,  levels = c("control", "CD"))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD" | PHENOTYPES_LIPO$cohort == "control",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD" | PHENOTYPES_LIPO$cohort == "control",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD" | PHENOTYPES_LIPO$cohort == "control",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD" | PHENOTYPES_LIPO$cohort == "control",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD" | PHENOTYPES_LIPO$cohort == "control",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+
+rownames(df) <- c(colnames(DISEASE[,1:26]))
+
+Age.int = c()
+for (group in dflist){
+  vector1 = c()
+  for (column in group[1:26]){
+    arreglo <- paste(round(mean(column),2),paste("$\\pm$", round(sd(column), 2))) #addplusminus sign
+    vector1 <- c(vector1, arreglo)
+  }
+  Age.int <- rbind(Age.int, vector1)
+}
+colnames(Age.int)<- names(values)[1:26]
+rownames(Age.int) <- c("RA","SLE","PS","PA","UC","CD","control")
+Age.int <- t(Age.int)
+
+article <- df[,c(1,2,5,6,7,8)]
+df <- as.data.frame(t(formatC(t(df), digits = 2, format = "e")))
+
+ color_cells2 <- function(def, var){
+  out <- ifelse(as.numeric(as.character(df[,(var-1)])) < 0 & as.numeric(as.character(df[,var]))<0.05,
+              paste0("\\cellcolor{blue!25}{", df[, var], "}"),
+              ifelse(as.numeric(as.character(df[,(var-1)])) > 0 & as.numeric(as.character(df[,var]))<0.05,
+                      paste0("\\cellcolor{red!25}{", df[, var], "}"),
+                      ifelse(as.numeric(as.character(df[,(var-1)])) > 0 & as.numeric(as.character(df[,var]))<0.055,
+                        paste0("\\cellcolor{orange!50}{", df[, var], "}"),
+                        ifelse(as.numeric(as.character(df[,(var-1)])) < 0 & as.numeric(as.character(df[,var]))<0.055,
+                          paste0("\\cellcolor{green!25}{", df[, var], "}"),
+                          paste0(df[,var])))))
+ }
+
+ for (column in c(2,4,6,8,10,12)){
+   df[,column] <- color_cells2(def = df, var = column)
+ }
+ 
+ colouring <- function(tab1, var) {
+  out <- ifelse(nchar(tab1[,var])<=8,
+                paste0(""),
+                paste0(sapply(strsplit(as.character(tab1[,var]), "}[{]"),"[",1),"}{")
+                      )
+ }
+ 
+ colouring2 <- function(tab1, tab2, var) {
+  out <- ifelse(substring(tab1[,var],1,1) =="\\",
+                paste0(tab1[,var],tab2[,(var/2)],"}"),
+                paste0(tab2[,(var/2)]))
+ }
+ 
+ for (column in c(2,4,6,8,10,12)){
+  df[,column] <- colouring(tab1 = df, var = column)
+  Age.int[,(column/2)] <- colouring2(tab1= df, tab2= Age.int,var =column)
+ }
+ 
+Age.int <- xtable(Age.int)
+align(Age.int) <- "|c|c|c|c|c|c|c|c|"
+ 
+df <- xtable(df)
+align(df) <- "|c|ll|ll|ll|ll|ll|ll|"
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+print(
+  df,
+  sanitize.text.function= function(x){x},
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      " & \\multicolumn{2}{|c|}{RA} & \\multicolumn{2}{c|}{SLE} & \\multicolumn{2}{c|}{PS} & \\multicolumn{2}{c|}{PA} & \\multicolumn{2}{c|}{UC} & \\multicolumn{2}{c|}{CD}\\\\
+       \\cline{2-13}
+      & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value\\\\"
+    )
+  )
+)
+
+print(
+  Age.int,
+  sanitize.text.function= function(x){x}
+)
+```
+
+![Coefficient and p-value for each lipoproteic variable in each cohort when comparing against the control group. In blue negative correlations, in red positive, green for borderline significant negative correlations (0.05< x <0.055) and orange for borderline significant positive correlations](Explor_img/association1.png)
+  
+```{r, echo=FALSE,fig.height=4}
+values <- cbind(values, PHENOTYPES_LIPO$activity)
+names(values)[28] <- c("activity")
+```
+
+![Mean and standard deviation of each lipoproteic variables in each cohort. In blue negative correlations, in red positive, green for borderline significant negative correlations (<0.055) and orange for borderline significant positive correlations.](Explor_img/variables21.png) 
+ 
+The majority of the lipoproteic variables show a negative correlation when compared against controls (Figures 16-17).
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "RA",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity, levels = c("LOW","HIGH"))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$time
+
+df <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+table <- data.frame(HIGH=integer(),
+                    HIGHprc=integer(),
+                    LOW=integer(),
+                    LOWprc=integer(),
+                    NAs=integer(),
+                    total=integer(),
+                    stringsAsFactors=FALSE)
+
+HIGH = sum(DISEASE$activity == "HIGH")
+LOW = sum(DISEASE$activity == "LOW")
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(HIGH,
+                (HIGH/TOTAL)*100,
+                LOW,
+                (LOW/TOTAL)*100,
+                sum(is.na(DISEASE$activity)),
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "SLE",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity, levels = c("LOW","HIGH"))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+HIGH = sum(DISEASE$activity == "HIGH")
+LOW = sum(DISEASE$activity == "LOW")
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(HIGH,
+                (HIGH/TOTAL)*100,
+                LOW,
+                (LOW/TOTAL)*100,
+                sum(is.na(DISEASE$activity)),
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "PS",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity, levels = c("LOW","HIGH"))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+HIGH = sum(DISEASE$activity == "HIGH")
+LOW = sum(DISEASE$activity == "LOW")
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(HIGH,
+                (HIGH/TOTAL)*100,
+                LOW,
+                (LOW/TOTAL)*100,
+                sum(is.na(DISEASE$activity)),
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "PA",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity, levels = c("LOW","HIGH"))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+HIGH = sum(DISEASE$activity == "HIGH")
+LOW = sum(DISEASE$activity == "LOW")
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(HIGH,
+                (HIGH/TOTAL)*100,
+                LOW,
+                (LOW/TOTAL)*100,
+                sum(is.na(DISEASE$activity)),
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "UC",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity, levels = c("LOW","HIGH"))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+HIGH = sum(DISEASE$activity == "HIGH")
+LOW = sum(DISEASE$activity == "LOW")
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(HIGH,
+                (HIGH/TOTAL)*100,
+                LOW,
+                (LOW/TOTAL)*100,
+                sum(is.na(DISEASE$activity)),
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "CD",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity, levels = c("LOW","HIGH"))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+HIGH = sum(DISEASE$activity == "HIGH")
+LOW = sum(DISEASE$activity == "LOW")
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(HIGH,
+                (HIGH/TOTAL)*100,
+                LOW,
+                (LOW/TOTAL)*100,
+                sum(is.na(DISEASE$activity)),
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+colnames(table) <- c("HIGH", "%HIGH", "LOW", "%LOW", "NAs", "TOTAL")
+rownames(table) <- c("RA","SLE","PS","PA","UC","CD")
+print(xtable(table, digits = c(0,0,1,0,1,0,0)), comment=F)
+
+rownames(df) <- c(colnames(DISEASE[,1:26]))
+
+article <- cbind(article, df[,c(1,2,5,6,7,8)])
+df <- t(formatC(t(df), digits = 2, format = "e"))
+
+ for (column in c(2,4,6,8,10,12)){
+   df[,column] <- color_cells2(def = df, var = column)
+ }
+
+df <- xtable(df)
+align(df) <- "|c|ll|ll|ll|ll|ll|ll|"
+
+print(
+  df,
+  sanitize.text.function= function(x){x},
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      " & \\multicolumn{2}{|c|}{RA} & \\multicolumn{2}{c|}{SLE} & \\multicolumn{2}{c|}{PS} & \\multicolumn{2}{c|}{PA} & \\multicolumn{2}{c|}{UC} & \\multicolumn{2}{c|}{CD}\\\\
+       \\cline{2-13}
+      & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value\\\\"
+    )
+  )
+)
+```
+
+\newpage
+
+##Disease activity association
+
+As in the previous step, a logistic regression analysis was used to test the association between the lipoproteic variables and the disease activity as a response (in each disease cohort). To do so, each cohort was divided into HIGH and LOW disease activity.
+
+![Table representing the number of samples in each category (high and low) for each disease.](Explor_img/activity.png)  
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/association21.png}
+    \caption{Correlation coefficient and p-value for each lipoproteic variable in each cohort when comparing LOW vs HIGH disease activity. In blue negative correlations, in red positive, green for borderline significant negative correlations (<0.055) and orange for borderline significant positive correlations.}
+\end{figure}
+
+There are not significiant differences among the lipoproteic variables in RA, SLE, PA and CD cohorts. Regarding PS comparison there are significant differences in VLDL-L and LDL size between HIGH and LOW activity samples, and the same happens in HDL size in UC patients (Figure 19).
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[(values$cohort == "PS" | values$cohort == "UC") & values$activity == "HIGH",][,c(10,22,23, 27,28)]
+df2 <- values[(values$cohort == "PS" | values$cohort == "UC") & values$activity == "LOW",][,c(10,22,23, 27,28)]
+
+df <- apply(df2[df2$cohort == "PS",][,c(1:3)], 2, function(x) {paste(paste(round(mean(x),2), "$\\pm$"),round(sd(x),2))})
+df <- rbind(df, apply(DISEASE[DISEASE$cohort == "PS",][,c(1:3)], 2, function(x) {paste(round(mean(x),2),paste("$\\pm$", round(sd(x), 2)))}))
+df <- rbind(df,apply(df2[df2$cohort == "UC",][,c(1:3)], 2, function(x) {paste(paste(round(mean(x),2), "$\\pm$"),round(sd(x),2))}))
+df <- rbind(df,apply(DISEASE[DISEASE$cohort == "UC",][,c(1:3)], 2, function(x) {paste(paste(round(mean(x),2), "$\\pm$"),round(sd(x),2))}))
+colnames(df) <- c("VLDL-L","LDL nm","HDL nm")
+df <- t(df)
+
+df <- xtable(df)
+align(df) <- "|c|cc|cc|"
+
+print(
+  df,
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      " & \\multicolumn{2}{|c|}{PS} & \\multicolumn{2}{c|}{UC}\\\\
+       \\cline{2-5}
+      & LOW & HIGH & LOW & HIGH\\\\"
+    )
+  ), sanitize.text.function= function(x){x}
+)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "RA" | values$cohort == "control",]
+
+DISEASE$activity <- factor(DISEASE$activity)
+bmi <- PHENOTYPES_LIPO[(PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control") & (PHENOTYPES_LIPO$activity=="HIGH" | PHENOTYPES_LIPO$cohort == "control"),]$bmi
+gender <- factor(PHENOTYPES_LIPO[(PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control") & (PHENOTYPES_LIPO$activity=="HIGH" | PHENOTYPES_LIPO$cohort == "control"),]$gender)
+age <- PHENOTYPES_LIPO[(PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control") & (PHENOTYPES_LIPO$activity=="HIGH" | PHENOTYPES_LIPO$cohort == "control"),]$age
+fast <- PHENOTYPES_LIPO[(PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control") & (PHENOTYPES_LIPO$activity=="HIGH" | PHENOTYPES_LIPO$cohort == "control"),]$fasting
+time <- PHENOTYPES_LIPO[(PHENOTYPES_LIPO$cohort=="RA" | PHENOTYPES_LIPO$cohort == "control") & (PHENOTYPES_LIPO$activity=="HIGH" | PHENOTYPES_LIPO$cohort == "control"),]$time
+
+df <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+DISEASE <- DISEASE[DISEASE$activity=="HIGH" | DISEASE$cohort=="control",]
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+
+DISEASE <- DISEASE[DISEASE$activity=="LOW" | DISEASE$cohort=="control",]
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+
+DISEASE <- values[values$cohort == "SLE" | values$cohort == "control",]
+
+DISEASE$activity <- factor(DISEASE$activity)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE" | PHENOTYPES_LIPO$cohort == "control",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+DISEASE <- DISEASE[DISEASE$activity=="HIGH" | DISEASE$cohort=="control",]
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+
+DISEASE <- DISEASE[DISEASE$activity=="LOW" | DISEASE$cohort=="control",]
+
+for (x in DISEASE[,1:26]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+
+DISEASE <- values[values$cohort == "PS",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+
+DISEASE <- values[values$cohort == "PA",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+
+DISEASE <- values[values$cohort == "UC",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+
+DISEASE <- values[values$cohort == "CD",]
+DISEASE <- DISEASE[,-27]
+DISEASE$activity <- factor(DISEASE$activity)
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,1:26]){
+  model <- glm(activity~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+rownames(df) <- c(colnames(DISEASE[,1:26]))
+df <- t(formatC(t(df), digits = 2, format = "e"))
+
+df <- xtable(df[1:26,])
+align(df) <- "|c|ll|ll|ll|ll|ll|ll|"
+
+print(
+  df,
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      " & \\multicolumn{2}{|c|}{RA} & \\multicolumn{2}{c|}{SLE} & \\multicolumn{2}{c|}{PS} & \\multicolumn{2}{c|}{PA} & \\multicolumn{2}{c|}{UC} & \\multicolumn{2}{c|}{CD}\\\\
+       \\cline{2-13}
+      & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value\\\\"
+    )
+  )
+)
+```
+
+```{r, echo=FALSE,fig.height=4}
+values <- cbind(values, PHENOTYPES_LIPO$activq)
+names(values)[29] <- c("activq")
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "RA",]
+DISEASE <- DISEASE[,-c(27,28)]
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="RA",]$time
+
+df <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+table <- data.frame(Informed=integer(),
+                    Informedper=integer(),
+                    NAs=integer(),
+                    NAsper=integer(),
+                    total=integer(),
+                    stringsAsFactors=FALSE)
+
+NAs = sum(is.na(DISEASE$activq))
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(TOTAL-NAs,
+                 ((TOTAL-NAs)/TOTAL)*100,
+                 NAs,
+                (NAs/TOTAL)*100,
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- lm(activq~x+age+bmi+gender+fast+time,data=DISEASE)
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "SLE",]
+DISEASE <- DISEASE[,-c(27,28)]
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="SLE",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+NAs = sum(is.na(DISEASE$activq))
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(TOTAL-NAs,
+                 ((TOTAL-NAs)/TOTAL)*100,
+                 NAs,
+                (NAs/TOTAL)*100,
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- lm(activq~x+age+bmi+gender+fast+time,data=DISEASE)
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "PS",]
+DISEASE <- DISEASE[,-c(27,28)]
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+NAs = sum(is.na(DISEASE$activq))
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(TOTAL-NAs,
+                 ((TOTAL-NAs)/TOTAL)*100,
+                 NAs,
+                (NAs/TOTAL)*100,
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- lm(activq~x+age+bmi+gender+fast+time,data=DISEASE)
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "PA",]
+DISEASE <- DISEASE[,-c(27,28)]
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+NAs = sum(is.na(DISEASE$activq))
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(TOTAL-NAs,
+                 ((TOTAL-NAs)/TOTAL)*100,
+                 NAs,
+                (NAs/TOTAL)*100,
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- lm(activq~x+age+bmi+gender+fast+time,data=DISEASE)
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "UC",]
+DISEASE <- DISEASE[,-c(27,28)]
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="UC",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+NAs = sum(is.na(DISEASE$activq))
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(TOTAL-NAs,
+                 ((TOTAL-NAs)/TOTAL)*100,
+                 NAs,
+                (NAs/TOTAL)*100,
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- lm(activq~x+age+bmi+gender+fast+time,data=DISEASE)
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+DISEASE <- values[values$cohort == "CD",]
+DISEASE <- DISEASE[,-c(27,28)]
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="CD",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+NAs = sum(is.na(DISEASE$activq))
+TOTAL = dim(DISEASE)[1]
+
+table <- rbind(table,
+               c(TOTAL-NAs,
+                 ((TOTAL-NAs)/TOTAL)*100,
+                 NAs,
+                (NAs/TOTAL)*100,
+                TOTAL)
+               )
+
+for (x in DISEASE[,1:26]){
+  model <- lm(activq~x+age+bmi+gender+fast+time,data=DISEASE)
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df,df2)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+colnames(table) <- c("INFORMED", "%INFORMED", "NAs", "%NAs", "TOTAL")
+rownames(table) <- c("RA","SLE","PS","PA","UC","CD")
+print(xtable(table, digits = c(0,0,1,0,1,0)), comment=F)
+
+rownames(df) <- c(colnames(DISEASE[,1:26]))
+
+article <- cbind(article, df[,c(1,2,5,6,7,8)])
+df <- t(formatC(t(df), digits = 2, format = "e"))
+
+df <- xtable(df)
+align(df) <- "|c|ll|ll|ll|ll|ll|ll|"
+
+print(
+  df,
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      " & \\multicolumn{2}{|c|}{RA} & \\multicolumn{2}{c|}{SLE} & \\multicolumn{2}{c|}{PS} & \\multicolumn{2}{c|}{PA} & \\multicolumn{2}{c|}{UC} & \\multicolumn{2}{c|}{CD}\\\\
+       \\cline{2-13}
+      & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value\\\\"
+    )
+  )
+)
+```
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval=FALSE}
+article2 <- t(formatC(t(article), digits = 2, format = "e"))
+
+ color_cells2 <- function(def, var){
+  out <- ifelse(as.numeric(as.character(def[,var]))<0.05,
+              paste0( def[, var], " $^{*}$"),
+              ifelse( as.numeric(as.character(def[,var]))<0.1,
+                        paste0("\\textbf{", def[, var], "}"),
+                        paste0(def[,var])))
+ }
+
+ for (column in c(2,4,6,8,10,12,14,16,18)){
+   article2[,column] <- color_cells2(def = article2, var = column)
+ }
+
+article2 <- xtable(article2)
+align(article2) <- "|c|ll|ll|ll|ll|ll|ll|ll|ll|ll|"
+
+print(
+  article2,
+  sanitize.text.function= function(x){x},
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      " & \\multicolumn{2}{|c|}{RA vs CN} & \\multicolumn{2}{c|}{PS vs CN} & \\multicolumn{2}{c|}{PA vs CN} & \\multicolumn{2}{c|}{RA H vs L} & \\multicolumn{2}{c|}{PS H vs L} & \\multicolumn{2}{c|}{PA H vs L} & \\multicolumn{2}{c|}{RA ACTq} & \\multicolumn{2}{c|}{PS ACTq} & \\multicolumn{2}{c|}{PA ACTq}\\\\
+       \\cline{2-19}
+      & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value\\\\"
+    )
+  )
+)
+```
+
+\newpage
+
+##Quantitative disease activity association
+
+Finally a linear regression analysis will be used to test the association between the lipoproteic variables and the quantitative disease activity as a response. In order to remove/reduce the variance related to epidemiologic and technical variables, these were used as covariables:
+
+![Coefficient and the corresponding p-value, of the association between each lipoproteic parameter and the activity  (quantitative) using linear regression models.](Explor_img/activq.png)
+
+![Linear model coefficient for the lipoproteic variables and the corresponding p-value. ](Explor_img/association3.png)
+
+There are not significant associations between the quantitative value of disease activity and the lipoporteic variables (Figure 21).
+
+\newpage
+
+#Psoriatic Arthritis
+
+Searching for information/publications about studies that had already explored the field of NMR lipoprotein profile characterization in the diseases considered in the current analysis, we found out that there is very few related publications. Specifically for Psoriatic Arthritis, the number was even smaller. So we decided to focus our attention on this cohort.
+
+Psoriatic arthritis is a form of arthritis that affects about 12-20% of patients who have psoriasis. Most people develop psoriasis first and are later diagnosed with psoriatic arthritis, but the joint problems can sometimes begin before skin lesions appear. Just up to 30 percent of people with psoriasis also develop psoriatic arthritis. Psoriatic Arthritis share symptoms with Psoriasis and Rheumatoid Arthritis, so the following analysis will focus on evalute if there are significant differences between PA and PS or RA. The purpose is to identify specific features of PA lipoproteic profile, not shared by the most similar diseases PS and RA.
+
+The following steps of the study are oriented to find if there are significant differences at cohort or disease activity level between PA and PS, RA and control groups.
+
+\newpage
+
+
+
+```{r, message= FALSE, echo=FALSE, fig.height=8, eval = FALSE}
+Temp <- D_sect[D_sect$Definicion == "Año de inicio",]
+
+values <- cbind(values,PHENOTYPES_LIPO$sampleID)
+values[,(ncol(values)+1)] <- 0
+names(values)[ncol(values)] <- c("OngoingYears")
+
+for (column in c(4:6)){
+  Temp[,column] <- gsub("NULL", 0, Temp[,column])
+  Temp[,column] <- substring(Temp[,column],1,4)
+  Temp[,column] <- as.numeric(Temp[,column])
+}
+Temp <- cbind(Temp, substring(Temp$idDato,1,2))
+names(Temp)[7] <- c("cohort")
+Temp$cohort <- gsub("AR", "RA", Temp$cohort)
+Temp$cohort <- gsub("AP", "PA", Temp$cohort)
+Temp <- cbind(Temp, rowSums(Temp[,4:6]))
+names(Temp)[8] <- c("Date")
+Temp <- cbind(Temp, (as.integer(format(Sys.Date(), "%Y"))-Temp$Date))
+names(Temp)[9] <- c("OngoingYears")
+Temp <- Temp[,-c(4:6)]
+#multidensity(Temp$Date ~ Temp$cohort, xlab = "Year", main = "Diagnose Year")
+
+for (patientID in unique(Temp$idCaso)){
+    values[values$`PHENOTYPES_LIPO$sampleID` == patientID,ncol(values)] <- Temp[Temp$idCaso == patientID,]$OngoingYears
+    }
+```
+
+```{r, message= FALSE, echo=FALSE, fig.height=8, results="asis", eval = FALSE}
+library(readr)
+Treat <- as.data.frame(read_csv("Treatment.csv"))
+
+for(i in c((ncol(values)+1):(ncol(values)+4))){
+  values[,i] <- 0
+}
+names(values)[(ncol(values)-3):ncol(values)] <- c("Methotrexate", "Infliximab", "Etanercept", "Adalimumab")
+ 
+#PA 
+Temp <- table(substr(Treat[substr(Treat$idDato,3,7) == "_I_04",]$idDato,8,9), Treat[substr(Treat$idDato,3,7) == "_I_04",]$idCaso)
+Temp <- as.data.frame(Temp) 
+Temp <- Temp[Temp$Freq>0 & Temp$Var1 %in% c("01","05", "06","07"),]
+ 
+for (treatment in c("01","05", "06","07")){
+  vector = c()
+  Vector <- Temp$Var1 == treatment
+  Vector <- gsub(TRUE,as.numeric(1),Vector)
+  Vector <- gsub(FALSE,as.numeric(0),Vector)
+  Temp <- cbind(Temp, Vector)
+}
+names(Temp) <- c("Treatment","Sample","Freq","Methotrexate", "Infliximab", "Etanercept", "Adalimumab")
+
+for (patientID in unique(Temp$Sample)){
+  if (sum(Temp$Sample == patientID) > 1){
+    for(integer in c(1:sum(Temp$Sample == patientID))){
+      column <- which(Temp[Temp$Sample == patientID,][integer,4:7] == 1)+31
+      values[values$`PHENOTYPES_LIPO$sampleID` == patientID,column] <- 1
+        }
+  }else{
+      column <- which(Temp[Temp$Sample == patientID,][,4:7] == 1)+31
+      values[values$`PHENOTYPES_LIPO$sampleID` == patientID,column] <- 1
+      }
+    }
+
+#RA
+Temp <- table(substr(Treat[substr(Treat$idDato,3,7) == "_H_05",]$idDato,8,9), Treat[substr(Treat$idDato,3,7) == "_H_05",]$idCaso)
+Temp <- as.data.frame(Temp) 
+Temp <- Temp[Temp$Freq>0 & Temp$Var1 %in% c("01","05", "06","07"),]
+
+for (treatment in c("01","05", "06","07")){
+  vector = c()
+  Vector <- Temp$Var1 == treatment
+  Vector <- gsub(TRUE,as.numeric(1),Vector)
+  Vector <- gsub(FALSE,as.numeric(0),Vector)
+  Temp <- cbind(Temp, Vector)
+}
+names(Temp) <- c("Treatment","Sample","Freq","Methotrexate", "Infliximab", "Etanercept", "Adalimumab")
+
+for (patientID in unique(Temp$Sample)){
+  if (sum(Temp$Sample == patientID) > 1){
+    for(integer in c(1:sum(Temp$Sample == patientID))){
+      column <- which(Temp[Temp$Sample == patientID,][integer,4:7] == 1)+31
+      values[values$`PHENOTYPES_LIPO$sampleID` == patientID,column] <- 1
+        }
+  }else{
+      column <- which(Temp[Temp$Sample == patientID,][,4:7] == 1)+31
+      values[values$`PHENOTYPES_LIPO$sampleID` == patientID,column] <- 1
+      }
+    }
+
+#PS
+Temp <- Treat[Treat$Definicion == "Glucocorticoides" | substr(Treat$idDato,3,9) == "_G_0304",]
+Temp <- table(Temp$idCaso, substr(Temp$idDato,10,11))
+Temp <- as.data.frame(Temp) 
+Temp <- Temp[Temp$Freq>0 & Temp$Var2 %in% c("03","06", "07","08"),]
+
+for (treatment in c("03","06", "07","08")){
+  vector = c()
+  Vector <- Temp$Var2 == treatment
+  Vector <- gsub(TRUE,as.numeric(1),Vector)
+  Vector <- gsub(FALSE,as.numeric(0),Vector)
+  Temp <- cbind(Temp, Vector)
+}
+names(Temp) <- c("Sample","Treatment","Freq","Methotrexate", "Infliximab", "Etanercept", "Adalimumab")
+
+for (patientID in unique(Temp$Sample)){
+  if (sum(Temp$Sample == patientID) > 1){
+    for(integer in c(1:sum(Temp$Sample == patientID))){
+      column <- which(Temp[Temp$Sample == patientID,][integer,4:7] == 1)+31
+      values[values$`PHENOTYPES_LIPO$sampleID` == patientID,column] <- 1
+        }
+  }else{
+      column <- which(Temp[Temp$Sample == patientID,][,4:7] == 1)+31
+      values[values$`PHENOTYPES_LIPO$sampleID` == patientID,column] <- 1
+      }
+}
+```
+
+```{r, message= FALSE, echo=FALSE, fig.height=8, eval = FALSE}
+library(readr)
+F_sect <- as.data.frame(read_csv("F_section.csv"))
+F_sect$Definicion <- gsub("&ntilde;","ñ",F_sect$Definicion)
+F_sect$Definicion <- gsub("&eacute;","é",F_sect$Definicion)
+F_sect$Definicion <- gsub("&oacute;","ó",F_sect$Definicion)
+F_sect$Definicion <- gsub("&iacute;","í",F_sect$Definicion)
+
+F_sect$Definicion <- gsub("Alopecia Aareata", "Alopecia", F_sect$Definicion)
+F_sect$idDato <- gsub("PS_F_0206", "PS_F_1106", F_sect$idDato)
+F_sect$Definicion <- gsub("Tiroiditis autoinmune", "Tiroiditis", F_sect$Definicion)
+F_sect$idDato <- gsub("PS_F_0207", "PS_F_1107", F_sect$idDato)
+F_sect$Definicion <- gsub("Hepatitis autoinmune", "Hepatitis", F_sect$Definicion)
+F_sect$idDato <- gsub("PS_F_0209", "PS_F_1109", F_sect$idDato)
+F_sect <- F_sect[!(F_sect$Definicion %in% c("Tipo", "Otras cuales", "Año", "Otras", "Desconocido")),]
+
+ini <- (ncol(values)+1)
+end <- (ncol(values)+length(unique(F_sect$Definicion)))
+values[,(ini:end)] <- 0
+
+Temp <- table(substr(F_sect$idDato,6,9), F_sect$idCaso)
+Temp <- as.data.frame(Temp) 
+Temp <- Temp[Temp$Freq>0,]
+
+names(values)[ini:end] <-  as.vector(unique(Temp$Var1)[order(unique(Temp$Var1))])
+
+for (disease in as.vector(unique(Temp$Var1)[order(unique(Temp$Var1))])){
+  vector = c()
+  Vector <- Temp$Var1 == disease
+  Vector <- gsub(TRUE,as.numeric(1),Vector)
+  Vector <- gsub(FALSE,as.numeric(0),Vector)
+  Temp <- cbind(Temp, Vector)
+}
+
+names(Temp) <- c("Treatment","Sample","Freq",as.vector(unique(Temp$Var1)[order(unique(Temp$Var1))]))
+
+for (patientID in unique(Temp$Sample)){
+  if (sum(Temp$Sample == patientID) > 1){
+    for(integer in c(1:sum(Temp$Sample == patientID))){
+      column <- which(Temp[Temp$Sample == patientID,][integer,4:22] == 1)+35
+      values[values$`PHENOTYPES_LIPO$sampleID` == patientID,column] <- 1
+        }
+  }else{
+      column <- which(Temp[Temp$Sample == patientID,][,4:22] == 1)+35
+      values[values$`PHENOTYPES_LIPO$sampleID` == patientID,column] <- 1
+      }
+}
+
+names(values)[ini:end] <- c("Dyslip", "HTA", "TIIDM", "Neop", "IAM", "Apendic", "Colagen", "TIDM", "Vitil", "Addis", "Rayn", "Alop", "Tyroid", "Gastr", "Hepat", "Citop", "Scler", "Penfig", "Fibros")
+
+fig.comorb <- values[values$cohort %in% c("RA","PA","PS"),]
+Temp <- as.data.frame.matrix(table(fig.comorb$cohort,fig.comorb[,36]))[2]
+for (numbers in c((ini+1):end)){
+  Temp <- cbind(Temp,as.data.frame.matrix(table(fig.comorb$cohort,fig.comorb[,numbers]))[2])
+}
+Temp <- Temp[-c(1,2,6,7),]
+```
+
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval = FALSE}
+
+comparaHL <- function(cohort1,reference, variable){
+lstvars <- c(1:26)
+  
+  if (variable != ""){
+    lstvars <- c(c(1:26), variable)
+  }
+
+DISEASE <- values[values$cohort == cohort1 | values$cohort == reference,]
+DISEASE$cohort <- factor(DISEASE$cohort, levels = c(reference, cohort1))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1 | PHENOTYPES_LIPO$cohort == reference,]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1 | PHENOTYPES_LIPO$cohort == reference,]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1 | PHENOTYPES_LIPO$cohort == reference,]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1 | PHENOTYPES_LIPO$cohort == reference,]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort==cohort1 | PHENOTYPES_LIPO$cohort == reference,]$time
+
+df <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,lstvars]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time+DISEASE[,variable],data=DISEASE ,family= "binomial")
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+
+DISEASE <- values[(values$cohort == cohort1 & values$activity == "HIGH") | (values$cohort == reference),]
+DISEASE$cohort <- factor(DISEASE$cohort, levels = c(reference, cohort1))
+bmi <- PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "HIGH") | (values$cohort == reference),]$bmi
+gender <- factor(PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "HIGH") | (values$cohort == reference),]$gender)
+age <- PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "HIGH") | (values$cohort == reference),]$age
+fast <- PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "HIGH") | (values$cohort == reference),]$fasting
+time <- PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "HIGH") | (values$cohort == reference),]$time
+
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,lstvars]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time+DISEASE[,variable],data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df, df2)
+
+DISEASE <- values[(values$cohort == cohort1 & values$activity == "LOW") | (values$cohort == reference),]
+DISEASE$cohort <- factor(DISEASE$cohort, levels = c(reference, cohort1))
+bmi <- PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "LOW") | (values$cohort == reference),]$bmi
+gender <- factor(PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "LOW") | (values$cohort == reference),]$gender)
+age <- PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "LOW") | (values$cohort == reference),]$age
+fast <- PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "LOW") | (values$cohort == reference),]$fasting
+time <- PHENOTYPES_LIPO[(values$cohort == cohort1 & values$activity == "LOW") | (values$cohort == reference),]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,lstvars]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time+DISEASE[,variable],data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df, df2)
+
+rownames(df) <- c(colnames(DISEASE[,lstvars]))
+df <- t(formatC(t(df), digits = 2, format = "e"))
+
+color_cells2 <- function(def, var){
+  out <- ifelse(as.numeric(as.character(df[,(var-1)])) < 0 & as.numeric(as.character(df[,var]))<0.05,
+              paste0("\\cellcolor{blue!25}{", df[, var], "}"),
+              ifelse(as.numeric(as.character(df[,(var-1)])) > 0 & as.numeric(as.character(df[,var]))<0.05,
+                      paste0("\\cellcolor{red!25}{", df[, var], "}"),
+                      ifelse(as.numeric(as.character(df[,(var-1)])) > 0 & as.numeric(as.character(df[,var]))<0.055,
+                        paste0("\\cellcolor{orange!50}{", df[, var], "}"),
+                        ifelse(as.numeric(as.character(df[,(var-1)])) < 0 & as.numeric(as.character(df[,var]))<0.055,
+                          paste0("\\cellcolor{green!25}{", df[, var], "}"),
+                          paste0(df[,var])))))
+ }
+
+ for (column in c(2,4,6)){
+   df[,column] <- color_cells2(def = df, var = column)
+ }
+
+df <- xtable(df)
+align(df) <- "|c|ll|ll|ll|"
+
+mod <- paste0(" & \\multicolumn{2}{|c|}{",cohort1," vs ",reference,"} & \\multicolumn{2}{c|}{",cohort1,"High vs ",reference,"} & \\multicolumn{2}{c|}{",cohort1,"Low vs ",reference,"}\\\\ \\cline{2-7} & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value\\\\")
+
+df <- print(
+  df,
+  sanitize.text.function= function(x){x},
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      mod
+    )
+  )
+)
+
+return(df)
+}
+
+df <- comparaHL(cohort1 = "PA", reference = "PS", variable = 31)
+
+
+```
+
+##Comparison between PA vs CN
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/PACNHL.png}
+    \caption{Logistic regression coefficient and p-value of each lipoproteic variable, at cohort and disease activity level. In blue negative correlations, in red positive and green for borderline significant negative correlations (<0.055)}
+\end{figure}
+
+In all significant differences PA shows a negative association when compared against controls, being the group of HIGH disease activity the main source of this differences (Figure 22).
+
+\newpage
+
+##Comparison between PA vs PS
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval = FALSE}
+DISEASE <- values[values$cohort == "PS" | values$cohort == "PA",]
+DISEASE$cohort <- factor(DISEASE$cohort, levels = c("PA", "PS"))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "PA",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "PA",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "PA",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "PA",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PS" | PHENOTYPES_LIPO$cohort == "PA",]$time
+
+df <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,c(1:26)]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+
+DISEASE <- values[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "HIGH",]
+DISEASE$cohort <- factor(DISEASE$cohort, levels = c("PA", "PS"))
+bmi <- PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "HIGH",]$bmi
+gender <- factor(PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "HIGH",]$gender)
+age <- PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "HIGH",]$age
+fast <- PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "HIGH",]$fasting
+time <- PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "HIGH",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,c(1:26)]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df, df2)
+
+DISEASE <- values[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "LOW",]
+DISEASE$cohort <- factor(DISEASE$cohort, levels = c("PA", "PS"))
+bmi <- PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "LOW",]$bmi
+gender <- factor(PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "LOW",]$gender)
+age <- PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "LOW",]$age
+fast <- PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "LOW",]$fasting
+time <- PHENOTYPES_LIPO[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "LOW",]$time
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,c(1:26)]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df, df2)
+
+rownames(df) <- c(colnames(DISEASE[,c(1:26)]))
+df <- t(formatC(t(df), digits = 2, format = "e"))
+
+color_cells2 <- function(def, var){
+  out <- ifelse( as.numeric(as.character(df[,var]))<0.05,
+              paste0("\\textbf{", df[, var], "}"),
+              ifelse( as.numeric(as.character(df[,var]))<0.1,
+                      paste0(df[, var], "$^{*}$"),
+                      paste0(df[,var])))
+ }
+
+ for (column in c(2,4,6)){
+   df[,column] <- color_cells2(def = df, var = column)
+ }
+
+df <- xtable(df)
+align(df) <- "|c|ll|ll|ll|"
+
+print(
+  df,
+  sanitize.text.function= function(x){x},
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      " & \\multicolumn{2}{|c|}{PS vs PA} & \\multicolumn{2}{c|}{PS High vs PA High} & \\multicolumn{2}{c|}{PS Low vs PA Low}\\\\
+       \\cline{2-7}
+      & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value\\\\"
+    )
+  )
+)
+```
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/PAPSHL.png}
+    \caption{Logistic regression coefficient and p-value of each lipoproteic variable, at cohort and disease activity level. In blue negative correlations, in red positive and green for borderline significant negative correlations (<0.055)}
+\end{figure}
+
+When comparing PA vs PS groups (Figure 23), there are not differences between LOW disease level groups. The main source of difference is in the HIGH disease group, but some of these differences are masked when all samples are grouped in the correspoding cohort and compared.
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval = FALSE}
+DISEASE <- values[(values$cohort == "PS" | values$cohort == "PA") & values$activity == "HIGH",][,c(3,13,14,15,16,24,27,28)]
+
+df <- apply(DISEASE[DISEASE$cohort == "PA",][,c(1:6)], 2, function(x) {paste(round(mean(x),2),paste("$\\pm$", round(sd(x), 2)))})
+df <- rbind(df,apply(DISEASE[DISEASE$cohort == "PS",][,c(1:6)], 2, function(x) {paste(paste(round(mean(x),2), "$\\pm$"),round(sd(x),2))}))
+
+colnames(df) <- c("LDL-C", "LDL-T", "LDL-L", "LDL-M", "LDL-S", "Non HDL")
+rownames(df) <- c("PA High","PS High")
+df <- t(df)
+
+df <- xtable(df)
+align(df) <- "|c|cc|"
+
+print(
+  df, sanitize.text.function= function(x){x}
+)
+```
+
+\newpage
+
+##Comparison between PA vs RA
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval =FALSE}
+DISEASE <- values[values$cohort == "PA" | values$cohort == "RA",]
+DISEASE$cohort <- factor(DISEASE$cohort, levels  = c("RA", "PA"))
+bmi <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "RA",]$bmi
+gender <- factor(PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "RA",]$gender)
+age <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "RA",]$age
+fast <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "RA",]$fasting
+time <- PHENOTYPES_LIPO[PHENOTYPES_LIPO$cohort=="PA" | PHENOTYPES_LIPO$cohort == "RA",]$time
+DISEASE$Methotrexate <- factor(DISEASE$Methotrexate)
+DISEASE$Infliximab <- factor(DISEASE$Infliximab)
+DISEASE$Etanercept <- factor(DISEASE$Etanercept)
+DISEASE$Adalimumab <- factor(DISEASE$Adalimumab)
+
+df <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,c(1:26,31:35)]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time+Methotrexate+Infliximab+Etanercept+Adalimumab+OngoingYears,data=DISEASE ,family= "binomial")
+  df <- rbind(df,summary(model)$coefficients[2,c(1,4)])
+}
+
+DISEASE <- values[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "HIGH",]
+DISEASE$cohort <- factor(DISEASE$cohort, levels = c("RA", "PA"))
+bmi <- PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "HIGH",]$bmi
+gender <- factor(PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "HIGH",]$gender)
+age <- PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "HIGH",]$age
+fast <- PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "HIGH",]$fasting
+time <- PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "HIGH",]$time
+DISEASE$Methotrexate <- factor(DISEASE$Methotrexate)
+DISEASE$Infliximab <- factor(DISEASE$Infliximab)
+DISEASE$Etanercept <- factor(DISEASE$Etanercept)
+DISEASE$Adalimumab <- factor(DISEASE$Adalimumab)
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[c(1:26,31:35)]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time+Methotrexate+Infliximab+Etanercept+Adalimumab+OngoingYears,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df, df2)
+
+DISEASE <- values[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "LOW",]
+DISEASE$cohort <- factor(DISEASE$cohort, levels = c("RA", "PA"))
+bmi <- PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "LOW",]$bmi
+gender <- factor(PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "LOW",]$gender)
+age <- PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "LOW",]$age
+fast <- PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "LOW",]$fasting
+time <- PHENOTYPES_LIPO[(values$cohort == "PA" | values$cohort == "RA") & values$activity == "LOW",]$time
+DISEASE$Methotrexate <- factor(DISEASE$Methotrexate)
+DISEASE$Infliximab <- factor(DISEASE$Infliximab)
+DISEASE$Etanercept <- factor(DISEASE$Etanercept)
+DISEASE$Adalimumab <- factor(DISEASE$Adalimumab)
+
+df2 <- data.frame(Variable=integer(),
+                 pvalue=integer(),
+                 stringsAsFactors=FALSE)
+
+for (x in DISEASE[,c(1:26,31:35)]){
+  model <- glm(cohort~x+age+bmi+gender+fast+time+Methotrexate+Infliximab+Etanercept+Adalimumab+OngoingYears,data=DISEASE ,family= "binomial")
+  df2 <- rbind(df2,summary(model)$coefficients[2,c(1,4)])
+}
+
+df <- cbind(df, df2)
+
+rownames(df) <- c(colnames(DISEASE[,c(1:26,31:35)]))
+df <- t(formatC(t(df), digits = 2, format = "e"))
+
+color_cells2 <- function(def, var){
+  out <- ifelse(as.numeric(as.character(df[,(var-1)])) < 0 & as.numeric(as.character(df[,var]))<0.05,
+              paste0("\\cellcolor{blue!25}{", df[, var], "}"),
+              ifelse(as.numeric(as.character(df[,(var-1)])) > 0 & as.numeric(as.character(df[,var]))<0.05,
+                      paste0("\\cellcolor{red!25}{", df[, var], "}"),
+                      ifelse(as.numeric(as.character(df[,(var-1)])) > 0 & as.numeric(as.character(df[,var]))<0.055,
+                        paste0("\\cellcolor{orange!50}{", df[, var], "}"),
+                        ifelse(as.numeric(as.character(df[,(var-1)])) < 0 & as.numeric(as.character(df[,var]))<0.055,
+                          paste0("\\cellcolor{green!25}{", df[, var], "}"),
+                          paste0(df[,var])))))
+ }
+
+ for (column in c(2,4,6)){
+   df[,column] <- color_cells2(def = df, var = column)
+ }
+
+df <- xtable(df)
+align(df) <- "|c|ll|ll|ll|"
+
+print(
+  df,
+  sanitize.text.function= function(x){x},
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      " & \\multicolumn{2}{|c|}{PA vs RA} & \\multicolumn{2}{c|}{PA High vs RA High} & \\multicolumn{2}{c|}{PA Low vs RA Low}\\\\
+       \\cline{2-7}
+      & Coefficient & P-value & Coefficient & P-value & Coefficient & P-value\\\\"
+    )
+  )
+)
+```
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Explor_img/PARAHL.png}
+    \caption{Logistic regression coefficient and p-value of each lipoproteic variable, at cohort and disease activity level. In blue negative correlations, in red positive}
+\end{figure}
+
+```{r, echo=FALSE,fig.height=4, message=FALSE, warning=FALSE, results="asis", eval = FALSE}
+
+DISEASE <- values[(values$cohort == "PA"),][,c(2,7,13, 14, 24, 25, 26, 27,28)]
+df2 <- values[(values$cohort == "RA"),][,c(2,7,13, 14, 24, 25, 26, 27,28)]
+
+df <- apply(DISEASE[,c(1:7)], 2, function(x) {paste(round(mean(x),2),paste("$\\pm$", round(sd(x), 2)))})
+df <- rbind(df,apply(df2[,c(1:7)], 2, function(x) {paste(paste(round(mean(x),2), "$\\pm$"),round(sd(x),2))}))
+df <- rbind(df,apply(DISEASE[DISEASE$activity == "HIGH",][,c(1:7)], 2, function(x) {paste(paste(round(mean(x),2), "$\\pm$"),round(sd(x),2))}))
+df <- rbind(df,apply(df2[df2$activity == "HIGH",][,c(1:7)], 2, function(x) {paste(paste(round(mean(x),2), "$\\pm$"),round(sd(x),2))}))
+df <- rbind(df,apply(DISEASE[DISEASE$activity == "LOW",][,c(1:7)], 2, function(x) {paste(paste(round(mean(x),2), "$\\pm$"),round(sd(x),2))}))
+df <- rbind(df,apply(df2[df2$activity == "LOW",][,c(1:7)], 2, function(x) {paste(paste(round(mean(x),2), "$\\pm$"),round(sd(x),2))}))
+colnames(df) <- c("IDL-C","LDL-TG","LDL-T", "LDL-L", "Non-HDL", "Total/HDL", "LDL/HDL")
+df <- t(df)
+
+df <- xtable(df)
+align(df) <- "|c|cc|cc|cc|"
+
+print(
+  df,
+  #include.rownames = FALSE,
+  include.colnames = FALSE,
+  add.to.row = list(
+    pos = list(0),
+    command = c(
+      " 
+      & PA & RA & PA HIGH & RA HIGH & PA LOW & RA LOW\\\\"
+    )
+  ), sanitize.text.function= function(x){x}
+)
+```
+
+Comparing PA and RA (Figure 24) there are some significant differences at cohort level that can not be explained/reproduced when comparing groups at disease activity level. In this case the main source of differences is in the LOW disease activity comparison, with some positive assiciation related with PA (not seen in previous comparisons).
+
+\newpage
+
+#BACKGROUND
+
+In the following section we will present a description of the publications we found more relevant and related with the data we are working with. In each reference a brief description of the size and distribution of samples used in the study, a description of the analysis technique and the results with the following colour code:
+
+- \textcolor{green}{Green}: Agreement with our analysis of the data.
+- \textcolor{red}{Red}: Do not agree with our analysis of data (Opposite results).
+- \textcolor{blue}{Blue}: Do not agree with our analysis of data (Not significant in our results).
+
+\href{http://acrabstracts.org/abstract/higher-disease-activity-in-psoriatic-arthritis-is-associated-with-elevated-total-cholesterol-and-triglycerides/}{Higher Disease Activity In Psoriatic Arthritis Is Associated With Elevated Total Cholesterol and Triglycerides.}
+(2013 ACR meeting Abstracts, nº300).
+
+- 725 PsA patients.
+- Moderate to high disease activity in PsA is associated with increased levels of TC and TG.  Increasing disease activity is associated with increasing TG and decreasing HDL. (Comparison between high and low disease activity).
+- \textcolor{green}{There was no significant association found between disease activity and other lipid measures in the moderate to high disease vs low disease groups.} 
+- In the longitudinal analysis of 54 PsA patients with paired lipid measurements, higher PsA activity was associated with higher TG levels (beta = 3.85, p=0.02) and lower HDL levels (beta = -0.62, p<0.01) adjusted for duration between visits. 
+
+\href{https://www.ncbi.nlm.nih.gov/pubmed/?term=Dyslipoproteinemia+in+the+course+of+active+rheumatoid+arthritis}{Dyslipoproteinemia in the course of active rheumatoid arthritis.}
+Seminars in Arthritis and Rheumatism, 1992, Vol.22(3), pp.172-180 [Revista Peer Reviewed]
+
+- 69 patients with active rheumatoid arthritis (RA), 40 patients with psoriatic arthritis (PA), 21 patients with osteoarthritis (OA), and 65 healthy blood donors.
+- Patients with PA had signficant \textcolor{green}{lower levels of LDL-C} and - \textcolor{blue}{HDL-C} (not accessed).
+
+##Reference Article
+
+\begin{centering}
+\textbf{The following publication shared several features with our analysis, it was used as a reference to perform a deeper search in the articles that cited it (Reviews and Articles with no added information were discarded):}\par\medskip
+\end{centering}
+
+\href{https://www.ncbi.nlm.nih.gov/pubmed/?term=Lipoproteins+and+their+subfractions+in+psoriatic+arthritis%3A+identification+of+an+atherogenic+profile+with+active+joint+disease}{Lipoproteins and their subfractions in psoriatic arthritis: identification of an atherogenic profile with active joint disease.}
+Ann Rheum Dis 2000; 59 :904–909
+
+* 50 patients from the Psoriatic arthritis clinic, 20 with active joint disease, 13 of them were used to obtain LDL and VLDL subfractions.
+* Lipids and lipoproteins measured by standard precipitation techniques:
+    * VLDL by precipitation with sodium dodecyl sulphate.
+    * Total HDL with heparin-manganase chloride.
+    * HDL3 with dextran sulphate.
+    * Ch with cholesterol oxidase and p-amino-antypirene.
+    * TG with glycerol phosphate p-amino-antypirene.
+- \textcolor{red}{HDL cholesterol was again significantly reduced compared with controls (1.09 v 1.41 mmol/l; p<0.005).}
+- There was a greater percentage of LDL3 (small) in the total LDL in patients with psoriatic arthritis (24.8%) than in controls (15.5%) ( t test, p<0.001).
+- The percentage of triglyceride in VLDL3 was significantly reduced in the patients compared with controls, and there was a trend for an increase in the percentage of triglyceride in VLDL1.
+- LDL-C:TG is significatively lower in PA than in controls.
+- \textcolor{green}{LDL-C is significantly lower in patients with active disease than in controls, but not when all PA patients are used to do the comparison.}
+- HDL3-C is lower in PA when compared against controls.
+- Total-C is lower in patients with active disease, but this difference has not been found significant when comparing all PA patients against controls.
+
+###Related articles
+
+\href{https://www.ncbi.nlm.nih.gov/pubmed/17067658}{Prevalence and Risk Factors of Atherosclerosis in Patients with Psoriatic Arthritis.}
+Semin Arthritis Rheum 36:203-209 (2007)
+
+- 102 adult patients with PsA (72 women and 30 men), the control group consisted of 102 patients with RA (76 women and 26 men).
+- Serologic tests, including fasting glucose, triglyceride, cholesterol, insulin, C-peptide, and C-reactive protein (CRP) levels; erythrocyte sedimantation rate (ESR); and anthropometric measurements, such as body height, weight, and blood pressure, were evaluated at the time of the study.
+- Significant \textcolor{red}{higher levels} of cholesterol, triglycerides and \textcolor{red}{LDL-C}.
+
+\href{https://www.ncbi.nlm.nih.gov/pubmed/18400833}{Cardiovascular risk profile of patients with psoriatic arthritis compared to controls, the role of inflammation.}
+Rheumatology 2008;47:718–723
+
+- 102 consecutive PsA patients 82 healthy ethnicity-, age- and sex-matched controls.
+- TC and TG measured by an autoanalyser enzymatic method; HDL cholesterol was determined enzymatically with polythelene glycol-modified enzymes. LDL cholesterol was calculated by the Friedewald formula. If the triglyceride levels are above 4.0 mmol/l, then the LDL levels were measured directly by ultracentrifugal single spin analysis.
+- The TC and \textcolor{green}{LDL cholesterol levels were significantly lower}, while the \textcolor{red}{HDL cholesterol}, Apo A1 and Apo B levels were \textcolor{red}{significantly increased} in PsA patients compared to controls.
+
+\href{https://www.ncbi.nlm.nih.gov/pubmed/22037510}{A comparative study of serum and synovial fluid lipoprotein levels in patients with various arthritides.}
+Clinica Chimica Acta Volume 413, Issues 1–2, 18 January 2012, Pages 303–307
+
+- Paired Sinovial Fuid and serum samples were collected simultaneously from 14 patients with RA, 14 with PsA, and 16 with OA.
+- Fresh serum was used to determine TC and TG levels following standard enzymatic methods. HDL-C was assayed only in serum after precipitation of apoB-containing lipoproteins with phosphotungstic acid. LDL-C was obtained using the Friedewald formula corrected for the contribution of Lp(a)-cholesterol (cLDL-C).
+- Serum Apo A-I and \textcolor{red}{HDL-C levels were significantly higher} in the PsA patients with respect to those in the matched controls (p= 0.049; p = 0.014 respectively), while apo B and \textcolor{green}{LDL-C were significantly lower} (p= 0.039; p = 0.039 respectively).
+
+\href{https://www.ncbi.nlm.nih.gov/pubmed/?term=Prevalence+of+metabolic+syndrome+and+degree+of+cardiovascular+disease+risk+in+patients+with+Psoriatic+Arthritis}{Prevalence of metabolic syndrome and degree of cardiovascular disease risk in patients with Psoriatic Arthritis.}
+Eur J Rheumatol 2017; 4:40-5
+
+- 102 adult patients with PsA (72 women and 30 men, mean age: 44±11.6 years).
+-  Serologic tests, including 
+fasting  glucose,  triglyceride,  cholesterol,  insulin, C-peptide, and C-reactive protein (CRP) levels;  erythrocyte  sedimantation  rate  (ESR);  and  anthropometric  measurements,  such  as  body height, weight, and blood pressure, were evaluated at the time of the study (no NMR). 
+- Control group consisted of 102 patients with RA (76 women and 26 men, mean age: 47±11.6 years).
+- \textcolor{blue}{Significant differences in HDL-C between PA and RA}.
+
+\href{https://www.ncbi.nlm.nih.gov/pubmed/25634083}{Psoriasis Vulgaris with or without Arthritis and Independent of Disease Severity or Duration Is a Risk Factor for Hypercholesterolemia.}
+Dermatology 2015;230:170-176
+
+- A total of 661 Caucasian patients with chronic plaque Ps and 661 sex- and age-matched controls were enrolled.
+- Venous blood samples were taken after 12 h of fasting on a routine basis at the Departments of Biochemistry to study the following biochemical parameters: serum levels of cholesterol and TG as well as those related to various lipoproteins (LDL, HDL).
+- \textcolor{red}{In the article do not found differences between patients with Ps and PsA for any of the variables being taken}. (We detected differences at cohort and disease activity level).
+- Based on our population Ps is associated with alterations in TCh and \textcolor{green}{LDL cholesterol}, but not in TGs and \textcolor{red}{HDL cholesterol}, when ATP III panel levels are used.
+
+\href{https://www.ncbi.nlm.nih.gov/pubmed/?term=Association+between+small+dense+LDL+and+sub-clinical+atherosclerosis+in+patients+with+psoriatic+arthri}{Association between small dense LDL and sub-clinical atherosclerosis in patients with psoriatic arthritis.}
+Clin Rheumatol (2016) 35:2023–2029
+
+- 50 PsA subjects and 100 matched controls were enrolled in this study.
+- Total cholesterol and TG concentrations were measured using standard enzymatic methods. HDL-C was measured after the precipitation of very-low-density lipoproteins (VLDL) and low-density-lipoproteins (LDL-C) with phosphotungstic acid, and LDL-C was calculated according to the Friedewald formula. 
+- The proportion of sd-LDL particles to the whole LDL area was calculated and assigned to the variable named "LDL score". (comparable to %LDL-S/T).
+- Triglycerides were significantly lower in the control group as compared to PsA patients.
+- Median LDL score was significantly higher in patient with PsA as compared to control group (median 5.6 vs. 1.4, p < 0.001) (NOT in our data).
+- \textcolor{blue}{Median LDL particle diameter was lower in PsA patients as compared to control group (median 269 vs. 272, p < 0.001)} \textcolor{green}{(Only observed when comparing controls vs HIGH disease activity group)}.
+
+\newpage
+
+#QUESTIONS
+
+- Could there be any technical variables that may affect the results? (room temperature, output afeter several runs?)
+- Why controls have, in general, higher levels of the measured variables? (Most of the background report higher levels of cholesterol or triglycerides, or LDL in the considered disease cohorts).
+- Could NMR technology be considered more precise and accurate than automatized enzymatic/colorimetric techniques to measure lipoproteic variables?
+- Could total cholesterol or total triglycerides be obtained by adding up the cholesterol and triglycerides variables respectively?
+- Is there any difference in lipoprotein levels, between serum and plasma samples?
+- You used any internal control to ensure the precision of the results obtained after the spectrum processing?
